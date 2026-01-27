@@ -147,17 +147,32 @@ function initFlowLite() {
   });
 
   // -----------------------------------------------------------
-  // 2. Event: Na shortform submit
+  // 2. Event: Na shortform submit (CHAT & FORM SUPPORT)
   // -----------------------------------------------------------
   document.addEventListener("shortFormSubmitted", () => {
-    const form = document.getElementById("lead-form");
-    if (!form) return;
     
-    const current = form.closest(".flow-section");
-    if (!current) return;
+    // Zoek naar het formulier OF de chat interface
+    const form = document.getElementById("lead-form");
+    const chat = document.getElementById("chat-interface");
+    
+    // Bepaal de huidige sectie (container)
+    let current = null;
+    if (form && form.offsetParent !== null) {
+        current = form.closest(".flow-section");
+    } else if (chat) {
+        current = chat.closest(".flow-section");
+    }
+
+    if (!current) {
+        console.warn("⚠️ Kon huidige sectie niet vinden na submit.");
+        return;
+    }
     
     let next = current.nextElementSibling;
-    if (!next) return;
+    if (!next) {
+        console.warn("⚠️ Geen volgende sectie gevonden.");
+        return;
+    }
 
     // ivr skip
     while (
