@@ -385,11 +385,49 @@ form {
 }
 
 /* ============================================================
-   INTERNE CHAT STYLING (Bubbles & Header)
+   CHAT STYLING (V9 - EMBEDDED & SMOOTH)
    ============================================================ */
 
+/* 1. De Chat Interface (Centraal op pagina) */
+.chat-interface {
+  position: relative !important;
+  background: #ffffff !important;
+  width: 100% !important;
+  max-width: 480px !important; /* Mooie breedte op desktop */
+  height: 600px !important;
+  max-height: 80vh !important;
+  margin: 0 auto !important; /* Centreren */
+  
+  border-radius: 24px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  
+  /* Start status voor animatie (JS voegt .visible toe) */
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Actieve status (wordt door JS aangezet) */
+.chat-interface.visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+/* Status bij afsluiten (fade out) */
+.chat-interface.finished {
+  opacity: 0 !important;
+  transform: scale(0.95) !important;
+  pointer-events: none !important;
+}
+
+/* 2. Header */
 .chat-header {
-  background: rgba(255, 255, 255, 0.98) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
   padding: 16px 24px !important;
   display: flex !important;
   align-items: center !important;
@@ -398,40 +436,44 @@ form {
   z-index: 10 !important;
 }
 
+.avatar-wrapper { position: relative !important; width: 52px !important; height: 52px !important; flex-shrink: 0 !important; }
+.chat-avatar { width: 100% !important; height: 100% !important; border-radius: 50% !important; object-fit: cover !important; border: 3px solid #fff !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; display: block !important; }
+.online-dot { position: absolute !important; bottom: 2px !important; right: 2px !important; width: 14px !important; height: 14px !important; background: #14B670 !important; border: 3px solid #fff !important; border-radius: 50% !important; }
+
+.agent-name { font-weight: 800 !important; color: #1a1a1a !important; font-size: 18px !important; line-height: 1.2 !important; margin: 0 !important; }
+.agent-role { font-size: 13px !important; color: #14B670 !important; font-weight: 600 !important; margin-top: 2px !important; }
+
+/* 3. Chat Gebied */
 .chat-history {
   flex: 1 !important;
   padding: 24px 20px !important;
   overflow-y: auto !important;
-  background-color: #e5ddd5 !important;
-  background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)) !important;
+  background-color: #f4f6f8 !important; /* Iets frisser dan de WhatsApp kleur */
   display: flex !important;
   flex-direction: column !important;
-  gap: 10px !important;
+  gap: 12px !important;
 }
 
-/* Berichten */
+/* 4. Berichten */
 .chat-message {
   max-width: 85% !important;
   padding: 12px 16px !important;
   font-size: 15px !important;
   line-height: 1.5 !important;
   position: relative !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
   margin-bottom: 4px !important;
-  
-  /* Animatie */
   opacity: 0; 
   transform: translateY(10px) scale(0.95);
-  animation: popIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
-
 @keyframes popIn { to { opacity: 1; transform: translateY(0) scale(1); } }
 
-/* Julia (Wit - Linker staartje) */
+/* Julia */
 .chat-message.bot {
   align-self: flex-start !important;
   background: #ffffff !important;
-  color: #111 !important;
+  color: #2d3436 !important;
   border-radius: 0px 16px 16px 16px !important;
   margin-left: 8px !important;
 }
@@ -441,7 +483,7 @@ form {
   border-top: 16px solid #ffffff !important; border-left: 10px solid transparent !important;
 }
 
-/* User (Groen - Rechter staartje) */
+/* User */
 .chat-message.user {
   align-self: flex-end !important;
   background: #14B670 !important;
@@ -455,10 +497,10 @@ form {
   border-top: 16px solid #14B670 !important; border-right: 10px solid transparent !important;
 }
 
-/* Typ Indicator (FIX: Display block/flex wordt door JS geregeld, geen !important) */
+/* Typ Indicator */
 .chat-message.typing {
   padding: 12px 16px !important;
-  /* display: flex;  <-- WEGGEHAALD, JS regelt dit */
+  /* display: flex; geregeld door JS */
   gap: 4px !important;
   align-items: center !important;
   width: fit-content !important;
@@ -472,7 +514,6 @@ form {
   width: 0 !important; height: 0 !important; 
   border-top: 16px solid #fff !important; border-left: 10px solid transparent !important;
 }
-
 .dot {
   width: 6px !important; height: 6px !important; background: #b0b9c3 !important; border-radius: 50% !important;
   animation: typingBounce 1.4s infinite ease-in-out !important;
@@ -481,12 +522,12 @@ form {
 .dot:nth-child(2) { animation-delay: -0.16s !important; }
 @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-/* Inputs Area */
+/* 5. Input Area */
 .chat-controls {
   padding: 16px 20px !important;
-  background: #f0f2f5 !important;
-  border-top: 1px solid #e0e0e0 !important;
-  min-height: 80px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #f0f2f5 !important;
+  min-height: 90px !important;
   display: flex !important;
   flex-direction: column !important;
   justify-content: center !important;
@@ -494,45 +535,52 @@ form {
 }
 
 .chat-input-text {
-  width: 100% !important; padding: 12px 16px !important;
-  background: #ffffff !important; border: 1px solid #e0e0e0 !important;
-  border-radius: 24px !important; font-size: 16px !important;
+  width: 100% !important; padding: 14px 20px !important;
+  background: #f8f9fa !important; border: 1px solid #e0e0e0 !important;
+  border-radius: 30px !important; font-size: 16px !important;
   color: #333 !important; outline: none !important; margin: 0 !important;
 }
 .chat-input-text:focus {
-  border-color: #14B670 !important;
-  box-shadow: 0 0 0 3px rgba(20, 182, 112, 0.1) !important;
+  background: #fff !important; border-color: #14B670 !important;
+  box-shadow: 0 4px 12px rgba(20, 182, 112, 0.1) !important;
 }
 
-.chat-btn-group { display: flex !important; gap: 8px !important; width: 100% !important; }
+.chat-btn-group { display: flex !important; gap: 10px !important; width: 100% !important; }
 .chat-option-btn {
-  flex: 1 !important; padding: 12px !important; background: #ffffff !important;
-  border: none !important; border-radius: 20px !important;
-  font-weight: 600 !important; color: #14B670 !important; font-size: 15px !important;
-  cursor: pointer !important; box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
-  text-align: center !important; transition: transform 0.1s !important;
+  flex: 1 !important; padding: 14px !important; background: #ffffff !important;
+  border: 1px solid #e0e4e8 !important; border-radius: 16px !important;
+  font-weight: 700 !important; color: #2d3436 !important; font-size: 16px !important;
+  cursor: pointer !important; box-shadow: 0 4px 0 #e0e4e8 !important; text-align: center !important;
+  transition: transform 0.1s !important;
 }
-.chat-option-btn:active { transform: scale(0.98) !important; background: #e8f5e9 !important; }
+.chat-option-btn:active {
+  transform: translateY(2px) !important; box-shadow: 0 2px 0 #e0e4e8 !important;
+}
 
-/* Submit Buttons */
 .chat-submit-btn {
-  width: 44px !important; height: 44px !important; border-radius: 50% !important;
-  background: #14B670 !important; color: #fff !important; border: none !important; 
-  font-size: 18px !important; display: flex !important; align-items: center !important; justify-content: center !important;
-  cursor: pointer !important; flex-shrink: 0 !important;
+  width: 50px !important; height: 50px !important; border-radius: 50% !important;
+  background: linear-gradient(135deg, #14B670 0%, #0f8e56 100%) !important;
+  border: none !important; color: #fff !important; font-size: 20px !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  cursor: pointer !important; box-shadow: 0 4px 12px rgba(20, 182, 112, 0.3) !important; flex-shrink: 0 !important;
 }
 #chat-controls .cta-primary {
-  width: 100% !important; padding: 14px !important; background: #14B670 !important;
-  color: white !important; border: none !important; border-radius: 24px !important;
-  font-size: 16px !important; font-weight: 700 !important; cursor: pointer !important;
+  width: 100% !important; padding: 16px !important;
+  background: linear-gradient(135deg, #14B670 0%, #0f8e56 100%) !important;
+  color: white !important; border: none !important; border-radius: 30px !important;
+  font-size: 18px !important; font-weight: 700 !important; cursor: pointer !important;
+  box-shadow: 0 4px 15px rgba(20, 182, 112, 0.3) !important;
 }
 
-/* Mobiel */
+/* Mobile Fixes */
 @media (max-width: 480px) {
-  #chat-widget-container { bottom: 0; right: 0; left: 0; padding: 10px; align-items: center; }
-  .chat-interface { width: 100% !important; max-width: 100% !important; height: 85vh !important; border-radius: 20px 20px 0 0 !important; margin-bottom: 0 !important; }
-  .chat-widget-trigger { display: none !important; } 
-  .chat-interface.closed + .chat-widget-trigger { display: flex !important; position: fixed; bottom: 20px; right: 20px; }
+  .chat-interface {
+    border-radius: 0 !important;
+    height: 100vh !important; /* Fullscreen feel */
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
 }
 
 /* ============================================================
