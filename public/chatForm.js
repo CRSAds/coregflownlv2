@@ -85,10 +85,13 @@
 
   function openChat() {
     chatInterface.classList.remove("closed");
+    
     if (!hasStarted) {
       hasStarted = true;
-      setTimeout(() => runStep(0), 600); // Start gesprek na animatie
+      // Wacht 600ms op de animatie en start dan het gesprek
+      setTimeout(() => runStep(0), 600); 
     }
+    
     scrollToBottom();
   }
 
@@ -106,11 +109,14 @@
 
     // Loop door berichten
     for (const textTemplate of step.botTexts) {
+      // Toon puntjes
       typingEl.style.display = "flex"; 
       scrollToBottom();
       
-      await new Promise(r => setTimeout(r, 1100)); // Natuurlijke typ-tijd
+      // Natuurlijke typ-tijd
+      await new Promise(r => setTimeout(r, 1100)); 
       
+      // Verberg puntjes
       typingEl.style.display = "none";
 
       let text = typeof textTemplate === "function" 
@@ -130,7 +136,6 @@
   function renderControls(step) {
     let html = "";
     
-    // ... (Zelfde input logic als V7 voor buttons, text, email, dob) ...
     if (step.inputType === "buttons") {
       html = `<div class="chat-btn-group">`;
       step.options.forEach(opt => {
@@ -167,7 +172,6 @@
 
     controlsEl.innerHTML = html;
     
-    // Focus logic
     const firstInput = controlsEl.querySelector("input");
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
 
@@ -192,7 +196,6 @@
     const step = chatFlow[currentStepIndex];
     let userDisplay = "";
 
-    // ... (Validatie logica blijft gelijk aan V7) ...
     if (step.inputType === "text-multi") {
       const v1 = document.getElementById(`chat-input-${step.fields[0].id}`).value.trim();
       const v2 = document.getElementById(`chat-input-${step.fields[1].id}`).value.trim();
@@ -221,12 +224,12 @@
   // 6. FINAL SUBMIT & AUTO CLOSE
   window.handleFinalSubmit = async function() {
     addMessage("user", "Ja, ik ga akkoord! 🚀");
-    controlsEl.innerHTML = ``; // Geen knoppen meer
+    controlsEl.innerHTML = ``; 
 
-    // Julia bedankt
     typingEl.style.display = "flex"; scrollToBottom();
     await new Promise(r => setTimeout(r, 800));
     typingEl.style.display = "none";
+    
     addMessage("bot", "Dankjewel! Ik stuur je gegevens door. Een momentje... ✨");
 
     if (window.buildPayload && window.fetchLead) {
@@ -239,11 +242,9 @@
             await window.fetchLead(payload);
             sessionStorage.setItem("shortFormCompleted", "true");
             
-            // Wacht 2 seconden, sluit chat, en ga door
             setTimeout(() => {
                 closeChat(); // Klapt in elkaar
                 
-                // Wacht op de 'inklappen' animatie (500ms) voordat we van slide wisselen
                 setTimeout(() => {
                     document.dispatchEvent(new Event("shortFormSubmitted"));
                 }, 600);
