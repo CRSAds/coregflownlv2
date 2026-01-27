@@ -218,40 +218,38 @@
     runStep(currentStepIndex + 1);
   };
 
-  // De Grote Finale
+ // De Grote Finale in chatForm.js
   window.handleFinalSubmit = async function() {
     addMessage("user", "Ja, ik ga akkoord! 🚀");
-    controlsEl.innerHTML = `<div style="text-align:center; color:#888;">Een ogenblik...</div>`;
+    controlsEl.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">Een ogenblik...</div>`;
 
-    // 1. Trigger de bestaande logica uit formSubmit.js
-    // We simuleren de 'shortFormSubmitted' event en payload build
-    
     if (window.buildPayload && window.fetchLead) {
         try {
-            // A. Bouw payload
             const payload = await window.buildPayload({ 
-                cid: "925", // Je shortform CID
+                cid: "925", // Check of dit je juiste Shortform CID is!
                 sid: "34", 
                 is_shortform: true 
             });
 
-            // B. Verstuur
-            await window.fetchLead(payload);
+            // Fire & Forget (of await als je zeker wilt weten dat het aankomt)
+            window.fetchLead(payload);
             
-            // C. Zet vlaggen
             sessionStorage.setItem("shortFormCompleted", "true");
-            sessionStorage.setItem("sponsorsAccepted", "true"); // Voor cosponsors.js
-
-            // D. Trigger Event (voor initFlow-lite.js navigatie)
-            document.dispatchEvent(new Event("shortFormSubmitted"));
+            
+            // Wacht heel even voor UX (anders flitst het weg)
+            setTimeout(() => {
+                console.log("🚀 Chat completed -> Triggering flow switch");
+                document.dispatchEvent(new Event("shortFormSubmitted"));
+            }, 800);
 
         } catch (e) {
             console.error("Chat submit error:", e);
             alert("Er ging iets mis. Probeer het opnieuw.");
-            location.reload();
         }
     } else {
-        console.error("formSubmit.js functies niet gevonden!");
+        console.error("CRITICAL: formSubmit.js functies niet gevonden!");
+        // Noodoplossing: stuur ze toch door
+        document.dispatchEvent(new Event("shortFormSubmitted"));
     }
   };
 
