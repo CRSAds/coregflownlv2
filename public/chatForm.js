@@ -1,5 +1,5 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - Auto Pilot)
+// 💬 CHAT FORM LOGIC (Julia - V9 Embedded & Smooth)
 // =============================================================
 
 (function() {
@@ -66,37 +66,21 @@
 
   // 2. STATE
   let currentStepIndex = 0;
-  let hasStarted = false;
   
   const historyEl = document.getElementById("chat-history");
   const controlsEl = document.getElementById("chat-controls");
   const typingEl = document.getElementById("typing-indicator");
   const chatInterface = document.getElementById("chat-interface");
 
-  // 3. INIT (AUTO START)
+  // 3. INIT (DIRECT START)
   function initChat() {
     if(!historyEl || !controlsEl) return;
     
-    // Wacht 1.5 seconde en pop dan de chat open
+    // Voeg 'visible' class toe na een mini-timeout voor de slide-up animatie
     setTimeout(() => {
-        openChat();
-    }, 1500);
-  }
-
-  function openChat() {
-    chatInterface.classList.remove("closed");
-    
-    if (!hasStarted) {
-      hasStarted = true;
-      // Wacht 600ms op de animatie en start dan het gesprek
-      setTimeout(() => runStep(0), 600); 
-    }
-    
-    scrollToBottom();
-  }
-
-  function closeChat() {
-    chatInterface.classList.add("closed");
+        if(chatInterface) chatInterface.classList.add("visible");
+        runStep(0);
+    }, 100);
   }
 
   // 4. CORE LOGICA
@@ -109,14 +93,12 @@
 
     // Loop door berichten
     for (const textTemplate of step.botTexts) {
-      // Toon puntjes
       typingEl.style.display = "flex"; 
       scrollToBottom();
       
       // Natuurlijke typ-tijd
-      await new Promise(r => setTimeout(r, 1100)); 
+      await new Promise(r => setTimeout(r, 1000)); 
       
-      // Verberg puntjes
       typingEl.style.display = "none";
 
       let text = typeof textTemplate === "function" 
@@ -221,7 +203,7 @@
     runStep(currentStepIndex + 1);
   };
 
-  // 6. FINAL SUBMIT & AUTO CLOSE
+  // 6. FINAL SUBMIT & EXIT
   window.handleFinalSubmit = async function() {
     addMessage("user", "Ja, ik ga akkoord! 🚀");
     controlsEl.innerHTML = ``; 
@@ -242,12 +224,13 @@
             await window.fetchLead(payload);
             sessionStorage.setItem("shortFormCompleted", "true");
             
+            // Wacht 2 sec, fade out, en ga door
             setTimeout(() => {
-                closeChat(); // Klapt in elkaar
+                if(chatInterface) chatInterface.classList.add("finished"); // Fade out
                 
                 setTimeout(() => {
                     document.dispatchEvent(new Event("shortFormSubmitted"));
-                }, 600);
+                }, 600); // Wacht op fade out
             }, 2000);
 
         } catch (e) {
@@ -256,7 +239,7 @@
         }
     } else {
         setTimeout(() => {
-             closeChat();
+             if(chatInterface) chatInterface.classList.add("finished");
              setTimeout(() => document.dispatchEvent(new Event("shortFormSubmitted")), 600);
         }, 1500);
     }
