@@ -1,9 +1,9 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + IVR Fix + LongForm)
+// 💬 CHAT FORM LOGIC (Julia - NL + IVR Final + LongForm)
 // =============================================================
 
 (function() {
-  // 1. VARIABELEN VOORAF DECLAREREN (Voorkomt ReferenceErrors)
+  // 1. VARIABELEN VOORAF DECLAREREN
   let historyEl, controlsEl, typingEl, chatInterface;
   let currentStepIndex = 0;
   
@@ -13,15 +13,16 @@
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // IVR Settings
-  const IVR_NUMBER_DISPLAY = "0906-0000"; 
-  const IVR_NUMBER_DIAL = "09060000"; 
-  const USER_PIN = Math.floor(1000 + Math.random() * 9000); // Willekeurige 4-cijferige pin
+  const IVR_NUMBER_DISPLAY = "0906-1512"; 
+  const IVR_NUMBER_DIAL = "09061512"; 
+  // ✅ CODE AANGEPAST: 3 cijfers (100-999)
+  const USER_PIN = Math.floor(100 + Math.random() * 900); 
 
   // =============================================================
   // 2. FLOW CONFIGURATIES
   // =============================================================
 
-  // FLOW A: Short Form (Start)
+  // FLOW A: Short Form
   const chatFlow = [
     {
       id: "gender",
@@ -70,7 +71,7 @@
       botTexts: [
         "Bedankt! We moeten alleen nog even je deelname verifiëren om misbruik te voorkomen 🛡️",
         isMobile 
-          ? "Klik op de knop hieronder om direct te bellen. De code wordt automatisch ingevoerd." 
+          ? "Klik op de knop hieronder om direct te bellen." // Tekst aangepast (geen gratis)
           : "Bel het onderstaande nummer en toets de code in om te bevestigen."
       ],
       inputType: "ivr_verify",
@@ -112,7 +113,6 @@
   // 3. INIT & LISTENERS
   // =============================================================
   
-  // Zorg dat startLongFormChat bekend is vóórdat we luisteren
   function startLongFormChat() {
       console.log("Chat resuming for Long Form...");
       if(!chatInterface) return;
@@ -125,15 +125,12 @@
       runStep(0);
   };
   
-  // Expose aan window voor fallback/testen
   window.startLongFormChat = startLongFormChat;
 
-  // Luisteraars
   document.addEventListener("DOMContentLoaded", initChat);
   document.addEventListener("coregFlowFinished", startLongFormChat);
 
   function initChat() {
-    // Hier pas variabelen vullen (DOM is nu klaar)
     historyEl = document.getElementById("chat-history");
     controlsEl = document.getElementById("chat-controls");
     typingEl = document.getElementById("typing-indicator");
@@ -158,7 +155,6 @@
 
     const step = currentFlow[index];
     
-    // Check conditie (IVR skip check)
     if (step.condition && !step.condition()) {
         runStep(index + 1);
         return;
@@ -212,24 +208,29 @@
     else if (step.inputType === "partners_choice") {
       html = `<button class="cta-primary" onclick="window.handlePartnerChoice(true)">${step.btnAccept}</button><button onclick="window.handlePartnerChoice(false)" style="display:block; width:100%; background:none; border:none; margin-top:12px; padding:5px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">${step.btnDecline}</button>`;
     }
-    // --- IVR RENDERING (Met jouw HTML) ---
+    
+    // --- IVR RENDERING ---
     else if (step.inputType === "ivr_verify") {
        const pinStr = step.pin.toString();
        
        if (isMobile) {
-           // MOBIEL VERSIE
+           // MOBIEL VERSIE: Toont code GROOT + Knop
            const telUri = `tel:${IVR_NUMBER_DIAL},${pinStr}#`;
            html = `
              <div id="ivr-mobile" style="text-align:center; width:100%;">
-               <a href="${telUri}" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:10px;">
-                 📞 Bel Nu (Gratis)
+               <div style="background:#f0f9f4; padding:10px; border-radius:10px; margin-bottom:12px; border:1px solid #c8e6c9;">
+                  <div style="font-size:13px; color:#555;">Jouw verificatiecode:</div>
+                  <div style="font-size:26px; font-weight:800; color:#14B670; letter-spacing:1px;">${pinStr}</div>
+               </div>
+               
+               <a href="${telUri}" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px;">
+                 📞 Bel Nu
                </a>
-               <div style="font-size:12px; color:#999;">Code wordt automatisch verstuurd</div>
+               <div style="font-size:11px; color:#999;">Code wordt automatisch verstuurd</div>
              </div>
            `;
        } else {
-           // DESKTOP VERSIE (Met Spinners)
-           // We bouwen de spinners dynamisch op basis van de PIN
+           // DESKTOP VERSIE: Spinners
            let digitsHtml = "";
            for(let char of pinStr) {
                digitsHtml += `<div class="digit" style="display:inline-block; width:40px; height:50px; background:#f0f9f4; border:1px solid #ccc; margin:0 4px; line-height:50px; font-size:24px; font-weight:bold; border-radius:6px; color:#14B670;">${char}</div>`;
@@ -251,6 +252,7 @@
            `;
        }
     }
+    
     // --- SOVENDUS EINDE ---
     else if (step.inputType === "sovendus_end") {
         html = `<div style="text-align:center; color:#14B670; font-weight:bold;">Bedankt voor je deelname!</div>`;
@@ -259,11 +261,10 @@
 
     controlsEl.innerHTML = html;
     
-    // Auto-focus eerste input
+    // Focus logic
     const firstInput = controlsEl.querySelector("input");
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
     
-    // Enter key support
     const inputs = controlsEl.querySelectorAll("input");
     inputs.forEach(input => {
         input.addEventListener("keydown", (e) => { if(e.key === "Enter") window.submitChatText(); });
@@ -335,7 +336,6 @@
 
   window.handleIVRCall = function() {
       if (!isMobile) addMessage("user", "Ik heb gebeld en de code ingevoerd.");
-      // IVR Klaar -> Afronden Short Form
       finalizeShortForm();
   };
 
@@ -344,8 +344,6 @@
   // =============================================================
 
   async function handleShortFormComplete() {
-     // Als we hier komen en IVR is NIET live, moeten we alsnog finishen.
-     // Als IVR wel live was, is handleIVRCall al aangeroepen.
      if (!isLive) finalizeShortForm();
   }
 
@@ -362,7 +360,6 @@
             await window.fetchLead(payload);
             sessionStorage.setItem("shortFormCompleted", "true");
             
-            // FADE OUT CHAT -> START COREG
             setTimeout(() => {
                 if(chatInterface) chatInterface.classList.add("finished"); 
                 setTimeout(() => document.dispatchEvent(new Event("shortFormSubmitted")), 600); 
@@ -370,7 +367,6 @@
 
         } catch (e) { console.error(e); }
     } else {
-        // Fallback
         setTimeout(() => {
              if(chatInterface) chatInterface.classList.add("finished");
              setTimeout(() => document.dispatchEvent(new Event("shortFormSubmitted")), 600);
