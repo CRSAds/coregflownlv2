@@ -262,7 +262,7 @@
         try {
             // ✅ NL Campaign ID (Pas aan als dit anders moet zijn)
             const payload = await window.buildPayload({ 
-                cid: "1123", 
+                cid: "925", 
                 sid: "34", 
                 is_shortform: true 
             });
