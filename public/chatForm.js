@@ -60,8 +60,7 @@
       ],
       inputType: "action",
       buttonText: "Ja, ik ga akkoord & verder!",
-      subText: "Door te klikken ga je akkoord met de <a href='#' style='color:#888; text-decoration:underline;'>actievoorwaarden</a>."
-    }
+      subText: "Door te klikken ga je akkoord met de <button type='button' id='open-actievoorwaarden-inline' style='background:none; border:none; padding:0; color:#888; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;'>actievoorwaarden</button>."    }
   ];
 
   // 2. STATE
