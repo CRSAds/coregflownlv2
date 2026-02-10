@@ -264,15 +264,50 @@
     };
   }
 
-  function initDobMask() {
+function initDobMask() {
     const input = document.getElementById("chat-input-dob");
     if(!input) return;
+    
     input.addEventListener("input", (e) => {
-        let v = input.value.replace(/\D/g, "");
+        // Check of de gebruiker aan het weghalen is (backspace), dan geen auto-jump doen
+        const isDelete = e.inputType && e.inputType.includes('delete');
+        
+        // Haal alle niet-cijfers weg
+        let v = input.value.replace(/\D/g, ""); 
+        
+        if (!isDelete) {
+            // 1. DAG CHECK: Als 1e cijfer > 3 (bijv. 4, 5...9), dan bedoelt men 04, 05 etc.
+            if (v.length === 1 && parseInt(v[0]) > 3) {
+                v = "0" + v;
+            }
+            
+            // 2. MAAND CHECK: Als 3e cijfer (1e van maand) > 1 (bijv. 2...9), dan bedoelt men 02, 03 etc.
+            // We kijken hier naar v[2] omdat v[0] en v[1] de dag zijn.
+            if (v.length === 3 && parseInt(v[2]) > 1) {
+                v = v.slice(0, 2) + "0" + v[2];
+            }
+        }
+
+        // Maximaal 8 cijfers (DDMMJJJJ)
         if (v.length > 8) v = v.slice(0, 8);
-        if (v.length > 4) input.value = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
-        else if (v.length > 2) input.value = `${v.slice(0, 2)} / ${v.slice(2)}`;
-        else input.value = v;
+
+        // Opbouwen van de weergave met slashes
+        let output = "";
+        if (v.length > 4) {
+            output = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
+        } else if (v.length > 2) {
+            output = `${v.slice(0, 2)} / ${v.slice(2)}`;
+        } else {
+            output = v;
+        }
+        
+        // Automatisch slash toevoegen als een blokje 'klaar' is
+        if (!isDelete) {
+            if (v.length === 2) output += " / ";
+            if (v.length === 4) output += " / ";
+        }
+
+        input.value = output;
     });
   }
 
