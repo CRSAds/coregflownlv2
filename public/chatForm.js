@@ -1,5 +1,5 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - V9 Embedded & Smooth)
+// 💬 CHAT FORM LOGIC (Julia - NL Version + Partner Split)
 // =============================================================
 
 (function() {
@@ -51,16 +51,31 @@
       fieldId: "email",
       placeholder: "jouw@email.nl"
     },
+    // --- STAP 1: ACTIEVOORWAARDEN (Verplicht) ---
     {
-      id: "optin",
+      id: "terms",
       botTexts: [
         "Bijna klaar! 🚀",
-        "Om deze actie mogelijk te maken, werken we samen met partners.",
-        "Ga je akkoord met de voorwaarden en dat zij je mogen benaderen?"
+        "Om verder te gaan, dien je akkoord te gaan met de voorwaarden."
       ],
-      inputType: "action",
-      buttonText: "Ja, ik ga akkoord & verder!",
-      subText: "Door te klikken ga je akkoord met de <button type='button' id='open-actievoorwaarden-inline' style='background:none; border:none; padding:0; color:#888; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;'>actievoorwaarden</button>."    }
+      inputType: "terms_agree", // Nieuw type
+      buttonText: "Ik ga akkoord",
+      // 👇 Link met ID opent de actievoorwaarden popup
+      subText: "Bekijk hier de <button type='button' id='open-actievoorwaarden-inline' style='background:none; border:none; padding:0; color:#888; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;'>actievoorwaarden</button>."
+    },
+    // --- STAP 2: PARTNERS (Keuze) ---
+    {
+      id: "partners",
+      botTexts: [
+        "Nog één dingetje...",
+        "Om deze actie mogelijk te maken, werken we samen met partners.",
+        // 👇 Link met class opent de partner popup
+        "Vind je het goed dat onze <button class='open-sponsor-popup' style='background:none; border:none; padding:0; color:#14B670; text-decoration:underline; cursor:pointer; font-size:inherit; font-weight:700; font-family:inherit;'>partners</button> je benaderen met aanbiedingen?"
+      ],
+      inputType: "partners_choice", // Nieuw type
+      btnAccept: "Ja, prima",
+      btnDecline: "Nee, liever niet" // Wordt een klein linkje
+    }
   ];
 
   // 2. STATE
@@ -71,11 +86,9 @@
   const typingEl = document.getElementById("typing-indicator");
   const chatInterface = document.getElementById("chat-interface");
 
-  // 3. INIT (DIRECT START)
+  // 3. INIT
   function initChat() {
     if(!historyEl || !controlsEl) return;
-    
-    // Voeg 'visible' class toe na een mini-timeout voor de slide-up animatie
     setTimeout(() => {
         if(chatInterface) chatInterface.classList.add("visible");
         runStep(0);
@@ -90,20 +103,15 @@
     controlsEl.innerHTML = ""; 
     controlsEl.style.opacity = "0";
 
-    // Loop door berichten
     for (const textTemplate of step.botTexts) {
       typingEl.style.display = "flex"; 
       scrollToBottom();
-      
-      // Natuurlijke typ-tijd
-      await new Promise(r => setTimeout(r, 1000)); 
-      
+      await new Promise(r => setTimeout(r, 800)); 
       typingEl.style.display = "none";
 
       let text = typeof textTemplate === "function" 
         ? textTemplate(getAllData()) 
         : textTemplate;
-        
       addMessage("bot", text);
     }
 
@@ -117,6 +125,7 @@
   function renderControls(step) {
     let html = "";
     
+    // --- STANDAARD KNOPPEN ---
     if (step.inputType === "buttons") {
       html = `<div class="chat-btn-group">`;
       step.options.forEach(opt => {
@@ -124,12 +133,14 @@
       });
       html += `</div>`;
     } 
+    // --- TEKST VELDEN ---
     else if (step.inputType === "text-multi") {
       step.fields.forEach(f => {
         html += `<input type="text" id="chat-input-${f.id}" class="chat-input-text" placeholder="${f.placeholder}" style="margin-bottom:10px;">`;
       });
       html += `<button class="cta-primary" onclick="window.submitChatText()" style="margin-top:5px;">Volgende</button>`;
     }
+    // --- DOB (Met Auto-Jump) ---
     else if (step.inputType === "dob") {
        html = `
         <div style="display:flex; gap:10px; width:100%;">
@@ -137,6 +148,7 @@
           <button class="chat-submit-btn" onclick="window.submitChatText()">➤</button>
         </div>`;
     }
+    // --- EMAIL ---
     else if (step.inputType === "email") {
         html = `
           <div style="display:flex; gap:10px; width:100%;">
@@ -144,15 +156,28 @@
             <button class="chat-submit-btn" onclick="window.submitChatText()">➤</button>
           </div>`;
     }
-    else if (step.inputType === "action") {
+    // --- STAP 1: ACTIEVOORWAARDEN (Verplicht) ---
+    else if (step.inputType === "terms_agree") {
       html = `
-        <button class="cta-primary" onclick="window.handleFinalSubmit()">${step.buttonText}</button>
+        <button class="cta-primary" onclick="window.handleTermsAgree()">${step.buttonText}</button>
         <div style="font-size:12px; color:#999; text-align:center; margin-top:10px; line-height:1.4;">${step.subText}</div>
+      `;
+    }
+    // --- STAP 2: PARTNERS (Keuze) ---
+    else if (step.inputType === "partners_choice") {
+      html = `
+        <button class="cta-primary" onclick="window.handlePartnerChoice(true)">${step.btnAccept}</button>
+        
+        <button onclick="window.handlePartnerChoice(false)" 
+                style="display:block; width:100%; background:none; border:none; margin-top:12px; padding:5px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">
+          ${step.btnDecline}
+        </button>
       `;
     }
 
     controlsEl.innerHTML = html;
     
+    // Focus & Enter key logic
     const firstInput = controlsEl.querySelector("input");
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
 
@@ -202,9 +227,29 @@
     runStep(currentStepIndex + 1);
   };
 
-  // 6. FINAL SUBMIT & EXIT
-  window.handleFinalSubmit = async function() {
-    addMessage("user", "Ja, ik ga akkoord! 🚀");
+  // --- NIEUWE HANDLERS ---
+
+  // Stap 1: Actievoorwaarden Accept
+  window.handleTermsAgree = function() {
+    addMessage("user", "Ik ga akkoord");
+    // Ga door naar de volgende stap (Partners)
+    runStep(currentStepIndex + 1);
+  };
+
+  // Stap 2: Partner Keuze & Submit
+  window.handlePartnerChoice = function(accepted) {
+    // Sla keuze op in sessionStorage (belangrijk voor backend!)
+    sessionStorage.setItem("sponsorsAccepted", accepted ? "true" : "false");
+    
+    const text = accepted ? "Ja, prima" : "Nee, liever niet";
+    addMessage("user", text);
+    
+    // Nu pas verzenden
+    finalizeSubmission();
+  };
+
+  // 6. FINAL SUBMIT
+  async function finalizeSubmission() {
     controlsEl.innerHTML = ``; 
 
     typingEl.style.display = "flex"; scrollToBottom();
@@ -215,6 +260,7 @@
 
     if (window.buildPayload && window.fetchLead) {
         try {
+            // ✅ NL Campaign ID (Pas aan als dit anders moet zijn)
             const payload = await window.buildPayload({ 
                 cid: "1123", 
                 sid: "34", 
@@ -223,13 +269,9 @@
             await window.fetchLead(payload);
             sessionStorage.setItem("shortFormCompleted", "true");
             
-            // Wacht 2 sec, fade out, en ga door
             setTimeout(() => {
-                if(chatInterface) chatInterface.classList.add("finished"); // Fade out
-                
-                setTimeout(() => {
-                    document.dispatchEvent(new Event("shortFormSubmitted"));
-                }, 600); // Wacht op fade out
+                if(chatInterface) chatInterface.classList.add("finished");
+                setTimeout(() => document.dispatchEvent(new Event("shortFormSubmitted")), 600);
             }, 2000);
 
         } catch (e) {
@@ -237,12 +279,13 @@
             alert("Er ging iets mis.");
         }
     } else {
+        // Fallback voor testen zonder backend
         setTimeout(() => {
              if(chatInterface) chatInterface.classList.add("finished");
              setTimeout(() => document.dispatchEvent(new Event("shortFormSubmitted")), 600);
         }, 1500);
     }
-  };
+  }
 
   // Helpers
   function addMessage(sender, text) {
@@ -264,44 +307,30 @@
     };
   }
 
-function initDobMask() {
+  // ✅ VERBETERDE DOB LOGICA (Auto-Jump)
+  function initDobMask() {
     const input = document.getElementById("chat-input-dob");
     if(!input) return;
     
     input.addEventListener("input", (e) => {
-        // Check of de gebruiker aan het weghalen is (backspace), dan geen auto-jump doen
         const isDelete = e.inputType && e.inputType.includes('delete');
-        
-        // Haal alle niet-cijfers weg
         let v = input.value.replace(/\D/g, ""); 
         
         if (!isDelete) {
-            // 1. DAG CHECK: Als 1e cijfer > 3 (bijv. 4, 5...9), dan bedoelt men 04, 05 etc.
-            if (v.length === 1 && parseInt(v[0]) > 3) {
-                v = "0" + v;
-            }
-            
-            // 2. MAAND CHECK: Als 3e cijfer (1e van maand) > 1 (bijv. 2...9), dan bedoelt men 02, 03 etc.
-            // We kijken hier naar v[2] omdat v[0] en v[1] de dag zijn.
-            if (v.length === 3 && parseInt(v[2]) > 1) {
-                v = v.slice(0, 2) + "0" + v[2];
-            }
+            // Dag > 3? -> 0 ervoor (bijv 4 wordt 04)
+            if (v.length === 1 && parseInt(v[0]) > 3) v = "0" + v;
+            // Maand > 1? -> 0 ervoor (bijv 2 wordt 02)
+            if (v.length === 3 && parseInt(v[2]) > 1) v = v.slice(0, 2) + "0" + v[2];
         }
 
-        // Maximaal 8 cijfers (DDMMJJJJ)
         if (v.length > 8) v = v.slice(0, 8);
 
-        // Opbouwen van de weergave met slashes
         let output = "";
-        if (v.length > 4) {
-            output = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
-        } else if (v.length > 2) {
-            output = `${v.slice(0, 2)} / ${v.slice(2)}`;
-        } else {
-            output = v;
-        }
+        if (v.length > 4) output = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
+        else if (v.length > 2) output = `${v.slice(0, 2)} / ${v.slice(2)}`;
+        else output = v;
         
-        // Automatisch slash toevoegen als een blokje 'klaar' is
+        // Auto slashes toevoegen
         if (!isDelete) {
             if (v.length === 2) output += " / ";
             if (v.length === 4) output += " / ";
