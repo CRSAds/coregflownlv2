@@ -1,29 +1,45 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + IVR + COREG + LONGFORM + FIXES)
+// 💬 CHAT FORM LOGIC (Julia - NL + API FIXES + POSTCODE + LONGFORM)
 // =============================================================
 
 (function() {
-  // --- MOBIELE HOOGTE FIX (Injectie van CSS voor perfecte viewport) ---
+  // --- CSS INJECTIE (Mobiele hoogte, desktop hoogte & compacte buttons) ---
   const style = document.createElement('style');
   style.innerHTML = `
-    #chat-interface {
-      height: 100dvh !important;
-      max-height: 100dvh !important;
-      display: flex !important;
-      flex-direction: column !important;
-      overflow: hidden !important;
-      box-sizing: border-box !important;
+    /* Mobiel: Chat vult exact het scherm */
+    @media (max-width: 767px) {
+      #chat-interface {
+        position: fixed !important; top: 0; left: 0; right: 0; bottom: 0;
+        height: 100dvh !important; max-height: 100dvh !important; width: 100vw !important;
+        z-index: 999999 !important; border-radius: 0 !important;
+        display: flex !important; flex-direction: column !important; margin: 0 !important;
+      }
     }
+    /* Desktop/Tablet: Nette maximale hoogte */
+    @media (min-width: 768px) {
+      #chat-interface {
+        height: 700px !important; max-height: 80vh !important;
+        border-radius: 12px !important; margin: 20px auto !important;
+        display: flex !important; flex-direction: column !important;
+      }
+    }
+    /* Scroll fix voor de geschiedenis */
     #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
     #chat-controls { flex: 0 0 auto !important; }
+    
+    /* Compacte Coreg Buttons */
+    .coreg-btn-compact {
+      padding: 8px 12px !important; font-size: 13px !important;
+      margin-bottom: 6px !important; min-height: 38px !important;
+      line-height: 1.2 !important; width: 100% !important; border-radius: 6px !important;
+    }
   `;
   document.head.appendChild(style);
 
-  // 1. VARIABELEN VOORAF DECLAREREN
+  // 1. VARIABELEN
   let historyEl, controlsEl, typingEl, chatInterface;
   let currentStepIndex = 0;
   
-  // URL & Device Checks
   const urlParams = new URLSearchParams(window.location.search);
   const isLive = urlParams.get("status") === "live"; 
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -34,15 +50,13 @@
   let coregFlow = []; 
 
   // =============================================================
-  // 2. ACHTERGROND API FETCHES (IVR & Coreg)
+  // 2. API FETCHES (Achtergrond)
   // =============================================================
   async function initializeData() {
-    // A. IVR Ophalen (Alleen als status=live)
     if (isLive) {
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
         const subId = urlParams.get("sub_id") || "345";
-        
         let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
         if (!t_id) {
             t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
@@ -50,10 +64,7 @@
             });
             localStorage.setItem("t_id", t_id);
         }
-        
-        localStorage.setItem("aff_id", affId);
-        localStorage.setItem("offer_id", offerId);
-        localStorage.setItem("sub_id", subId);
+        localStorage.setItem("aff_id", affId); localStorage.setItem("offer_id", offerId); localStorage.setItem("sub_id", subId);
 
         try {
             let internalVisitId = localStorage.getItem("internalVisitId");
@@ -77,7 +88,6 @@
         } catch (err) { console.error("IVR Error:", err); }
     }
 
-    // B. Coreg Campagnes Ophalen
     try {
         const apiUrl = window.API_COREG || "https://coregflownlv2.vercel.app/api/coreg.js";
         const res = await fetch(apiUrl);
@@ -85,10 +95,8 @@
         const campaigns = (json.data || []).filter(c => !c.uitsluiten_standaardpad); 
         
         coregFlow = campaigns.map((c, index) => {
-            const isFirst = index === 0;
             const botTexts = [];
-            
-            if (isFirst) botTexts.push("Om je deelname definitief af te ronden, hebben we nog een paar speciale aanbiedingen voor je geselecteerd! 🎁");
+            if (index === 0) botTexts.push("Om je deelname definitief af te ronden, hebben we nog een paar speciale aanbiedingen voor je geselecteerd! 🎁");
             
             const title = c.title_new || c.title || "";
             const imgUrl = c.image?.id ? `https://cms.core.909play.com/assets/${c.image.id}` : (c.image?.url || "https://via.placeholder.com/600x200?text=Aanbieding");
@@ -97,16 +105,11 @@
               <div style="margin: -12px -16px 12px -16px;">
                 <img src="${imgUrl}" style="width: 100%; border-radius: 16px 16px 0 0; display: block; object-fit: cover; max-height: 150px;">
               </div>
-              <strong style="font-size:16px; color:#111; display:block; margin-bottom:6px;">${title}</strong>
-              <span style="font-size:13px; color:#555; display:block; line-height:1.5;">${c.description || ""}</span>
+              <strong style="font-size:15px; color:#111; display:block; margin-bottom:4px;">${title}</strong>
+              <span style="font-size:12px; color:#555; display:block; line-height:1.4;">${c.description || ""}</span>
             `);
             
-            return {
-                id: `coreg_${c.id}`,
-                campaign: c,
-                botTexts: botTexts,
-                inputType: "coreg_interaction"
-            };
+            return { id: `coreg_${c.id}`, campaign: c, botTexts: botTexts, inputType: "coreg_interaction" };
         });
     } catch (err) { console.error("Coreg fetch error:", err); }
   }
@@ -150,7 +153,7 @@
   const longChatFlow = [
     {
       id: "address_zip", botTexts: ["Zo, de aanbiedingen zijn afgerond! 🎉", "Om je prijs eventueel op te sturen, hebben we je adres nodig.", "Wat is je postcode en huisnummer?"],
-      inputType: "text-multi", fields: [{ id: "zipcode", placeholder: "1234AB" }, { id: "housenumber", placeholder: "Nr" }]
+      inputType: "address_zip_lookup", fields: [{ id: "zipcode", placeholder: "1234AB" }, { id: "housenumber", placeholder: "Nr" }]
     },
     {
       id: "address_street", botTexts: ["Check.", "En je straatnaam en woonplaats?"],
@@ -200,12 +203,17 @@
         return;
     }
 
-    // ✅ FIX: Verzend Long Form direct als we de sovendus stap bereiken!
+    // Flush pending longform leads vlak voor Sovendus
     if (step.id === "sovendus") {
-        if (window.buildPayload && window.fetchLead) {
-            window.buildPayload({ cid: "1123", sid: "34", is_shortform: false })
-                  .then(payload => window.fetchLead(payload))
-                  .catch(e => console.error("Long Form Submit Error:", e));
+        const pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
+        if (pending.length > 0 && window.buildPayload && window.fetchLead) {
+            pending.forEach(async (lead) => {
+                try {
+                    const payload = await window.buildPayload({ cid: lead.cid, sid: lead.sid, is_shortform: false });
+                    window.fetchLead(payload);
+                } catch(e) { console.error(e); }
+            });
+            sessionStorage.removeItem("pendingLongFormLeads"); // Clear queue
         }
     }
 
@@ -236,7 +244,7 @@
       step.options.forEach(opt => html += `<button class="chat-option-btn" onclick="window.handleChatInput('${step.id}', '${opt.value}')">${opt.label}</button>`);
       html += `</div>`;
     } 
-    else if (step.inputType === "text-multi") {
+    else if (step.inputType === "text-multi" || step.inputType === "address_zip_lookup") {
       step.fields.forEach(f => html += `<input type="text" id="chat-input-${f.id}" class="chat-input-text" placeholder="${f.placeholder}" style="margin-bottom:10px;">`);
       html += `<button class="cta-primary" onclick="window.submitChatText()" style="margin-top:5px;">Volgende</button>`;
     }
@@ -266,17 +274,16 @@
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- COREG INTERACTIE (FIXES: Dropdown & Compact) ---
+    // --- COREG INTERACTIE (COMPACTE BUTTONS) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
-        const style = camp.ui_style?.toLowerCase() || "buttons"; // Check of het een dropdown is
+        const style = camp.ui_style?.toLowerCase() || "buttons";
         
-        html = `<div class="chat-btn-group" style="flex-direction:column; gap:6px;">`;
+        html = `<div class="chat-btn-group" style="flex-direction:column; gap:0;">`;
         
         if (style === "dropdown") {
-            // ✅ Fix: Toon dropdown indien gevraagd
-            html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:12px; font-size:15px; border:1px solid #ccc; border-radius:8px; width:100%;">
+            html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:10px; font-size:14px; border:1px solid #ccc; border-radius:6px; width:100%;">
                         <option value="">Kies een optie...</option>`;
             answers.forEach(opt => {
                 const val = opt.answer_value || "yes";
@@ -285,22 +292,19 @@
                 html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
             });
             html += `</select>`;
-            html += `<button class="cta-primary" style="width:100%; padding:10px; font-size:14px; border-radius:8px;" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
+            html += `<button class="cta-primary coreg-btn-compact" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
         } else {
-            // ✅ Fix: Kleinere en compactere knoppen
             answers.forEach(opt => {
                 const cid = opt.has_own_campaign ? opt.cid : camp.cid;
                 const sid = opt.has_own_campaign ? opt.sid : camp.sid;
                 const val = opt.answer_value || "yes";
-                html += `<button class="cta-primary" style="width:100%; padding:10px; font-size:14px; border-radius:8px;" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
+                html += `<button class="cta-primary coreg-btn-compact" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
             });
         }
         
-        // 'Nee bedankt' linkje
-        html += `<button onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')" style="display:block; width:100%; background:none; border:none; padding:8px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">Nee, bedankt</button>`;
+        html += `<button onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')" style="display:block; width:100%; background:none; border:none; padding:8px; color:#999; text-decoration:underline; font-size:12px; cursor:pointer; margin-top:4px;">Nee, bedankt</button>`;
         html += `</div>`;
     }
-    // --- SOVENDUS EINDE ---
     else if (step.inputType === "sovendus_end") {
         html = `<div style="text-align:center; color:#14B670; font-weight:bold;">Je deelname is definitief!</div>`;
         setTimeout(() => { if(window.renderSovendusBanner) window.renderSovendusBanner(); }, 500);
@@ -343,11 +347,46 @@
     runStep(currentStepIndex + 1);
   };
 
-  window.submitChatText = function() {
+  window.submitChatText = async function() {
     const step = currentFlow[currentStepIndex];
     let userDisplay = "";
     
-    if (step.inputType === "text-multi") {
+    // --- POSTCODE CHECK (API) ---
+    if (step.inputType === "address_zip_lookup") {
+        const zip = document.getElementById("chat-input-zipcode").value.trim();
+        const num = document.getElementById("chat-input-housenumber").value.trim();
+        if(!zip || !num) { alert("Vul postcode en huisnummer in."); return; }
+        
+        sessionStorage.setItem("zipcode", zip);
+        sessionStorage.setItem("housenumber", num);
+        addMessage("user", `${zip} ${num}`);
+        
+        typingEl.style.display = "flex"; scrollToBottom();
+        
+        try {
+            const res = await fetch("/api/validateAddressNL", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ postcode: zip, huisnummer: num })
+            });
+            const data = await res.json();
+            
+            typingEl.style.display = "none";
+            
+            if (data.valid) {
+                sessionStorage.setItem("street", data.street);
+                sessionStorage.setItem("city", data.city);
+                addMessage("bot", `Gevonden! Je adres is:<br><strong>${data.street}, ${data.city}</strong>`);
+                runStep(currentStepIndex + 2); // Sla handmatige straatvraag over!
+                return;
+            }
+        } catch(e) { console.error("Adres validatie fout:", e); }
+        
+        // Als API faalt of adres niet gevonden, ga naar handmatige invoer
+        typingEl.style.display = "none";
+        runStep(currentStepIndex + 1); 
+        return;
+    }
+    else if (step.inputType === "text-multi") {
        let values = []; let valid = true;
        step.fields.forEach(f => {
            const el = document.getElementById(`chat-input-${f.id}`);
@@ -369,8 +408,7 @@
     }
     else if (step.id === "dob") {
         const val = document.getElementById(`chat-input-dob`).value;
-        // ✅ FIX: Verwijder spaties uit de datum, zodat het strak is ("12/03/1990" i.p.v. "12 / 03 / 1990")
-        const cleanVal = val.replace(/\s+/g, ''); 
+        const cleanVal = val.replace(/\s+/g, ''); // Fix: Verwijder spaties voor Databowl
         if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in."); return; }
         sessionStorage.setItem("dob", cleanVal); userDisplay = val;
     }
@@ -392,7 +430,7 @@
       runStep(currentStepIndex + 1); 
   };
 
-  // --- COREG HANDLERS ---
+  // --- COREG HANDLERS (LOGICA VERBETERD) ---
   window.submitCoregDropdown = function(campId, fallbackCid, fallbackSid) {
       const sel = document.getElementById(`coreg-select-${campId}`);
       if(!sel || !sel.value) { alert("Kies een optie om verder te gaan."); return; }
@@ -404,31 +442,43 @@
 
   window.submitCoregAnswer = async function(answerValue, cid, sid, userText) {
       addMessage("user", userText); 
+      const camp = currentFlow[currentStepIndex].campaign;
 
-      if (window.buildPayload && window.fetchLead) {
-          try {
-              const key = `coreg_answers_${cid}`;
-              const prev = JSON.parse(sessionStorage.getItem(key) || "[]");
-              if (answerValue && !prev.includes(answerValue)) prev.push(answerValue);
-              sessionStorage.setItem(key, JSON.stringify(prev));
-              
-              const combined = prev.join(" - ");
-              sessionStorage.setItem(`f_2014_coreg_answer_${cid}`, combined);
-              
-              // Sla ook specifiek het dropdown antwoord op als het geen simpele yes/no is
-              if (answerValue && answerValue !== 'yes' && answerValue !== 'no') {
-                   sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${cid}`, answerValue);
-              }
-              
-              const payload = await window.buildPayload({ cid, sid, is_shortform: false, f_2014_coreg_answer: combined });
-              window.fetchLead(payload);
-          } catch(e) { console.error("Coreg lead verzendfout:", e); }
+      // Sla antwoord lokaal op
+      const key = `coreg_answers_${cid}`;
+      const prev = JSON.parse(sessionStorage.getItem(key) || "[]");
+      if (answerValue && !prev.includes(answerValue)) prev.push(answerValue);
+      sessionStorage.setItem(key, JSON.stringify(prev));
+      sessionStorage.setItem(`f_2014_coreg_answer_${cid}`, prev.join(" - "));
+      
+      if (answerValue && answerValue !== 'yes' && answerValue !== 'no') {
+           sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${cid}`, answerValue);
       }
 
-      // ✅ FIX: Multi-step logica (Sla rest van deze campagne over bij "Nee")
+      // Verwerk Lead (Alleen als antwoord "Ja" / Positief is)
+      if (answerValue !== "no") {
+          const isLongForm = camp.requiresLongForm || camp.requires_long_form === true || camp.requires_long_form === "true";
+          
+          if (isLongForm) {
+              // Zet in de wachtrij voor later (na invullen adres/telefoon)
+              let pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
+              if (!pending.some(p => p.cid === cid)) pending.push({ cid, sid });
+              sessionStorage.setItem("pendingLongFormLeads", JSON.stringify(pending));
+          } else {
+              // Direct verzenden (Shortform coreg)
+              if (window.buildPayload && window.fetchLead) {
+                  try {
+                      const payload = await window.buildPayload({ cid, sid, is_shortform: false });
+                      window.fetchLead(payload);
+                  } catch(e) {}
+              }
+          }
+      }
+
+      // Multistep Logica: Als we "Nee" zeggen, sla rest van campagne over
       let nextIdx = currentStepIndex + 1;
       if (answerValue === "no" && currentFlow === coregFlow) {
-          while (nextIdx < coregFlow.length && coregFlow[nextIdx].campaign.cid === cid) {
+          while (nextIdx < coregFlow.length && coregFlow[nextIdx].campaign.cid === camp.cid) {
               nextIdx++;
           }
       }
@@ -443,12 +493,13 @@
           controlsEl.innerHTML = ``; 
           typingEl.style.display = "flex"; scrollToBottom();
           
+          // Initial Lead versturen
           if (window.buildPayload && window.fetchLead) {
               try {
                   const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
                   await window.fetchLead(payload);
                   sessionStorage.setItem("shortFormCompleted", "true");
-              } catch (e) { console.error(e); }
+              } catch (e) {}
           }
           
           await new Promise(r => setTimeout(r, 600)); 
