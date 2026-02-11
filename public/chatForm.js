@@ -21,13 +21,12 @@
   // 2. IVR API LOGICA (Achtergrond fetch)
   // =============================================================
   async function initializeIVR() {
-    if (!isLive) return; // Geen onnodige API calls als we niet live zijn
+    if (!isLive) return;
 
     const affId = urlParams.get("aff_id") || "123";
     const offerId = urlParams.get("offer_id") || "234";
     const subId = urlParams.get("sub_id") || "345";
     
-    // Genereer of haal Transaction ID op
     let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
     if (!t_id) {
         t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
@@ -43,7 +42,6 @@
     localStorage.setItem("sub_id", subId);
 
     try {
-        // Stap 1: Registreer Visit
         let internalVisitId = localStorage.getItem("internalVisitId");
         if (!internalVisitId) {
             const resVisit = await fetch("https://cdn.909support.com/NL/4.1/assets/php/register_visit.php", {
@@ -58,7 +56,6 @@
             }
         }
 
-        // Stap 2: Vraag PIN aan
         if (internalVisitId) {
             const resPin = await fetch("https://cdn.909support.com/NL/4.1/stage/assets/php/request_pin.php", {
                 method: "POST",
@@ -178,7 +175,7 @@
   window.startLongFormChat = startLongFormChat;
 
   document.addEventListener("DOMContentLoaded", () => {
-      initializeIVR(); // Start de fetch in de achtergrond!
+      initializeIVR(); 
       initChat();
   });
   
@@ -257,14 +254,12 @@
       html = `<button class="cta-primary" onclick="window.handlePartnerChoice(true)">${step.btnAccept}</button><button onclick="window.handlePartnerChoice(false)" style="display:block; width:100%; background:none; border:none; margin-top:12px; padding:5px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">${step.btnDecline}</button>`;
     }
     
-    // --- IVR RENDERING ---
+    // --- IVR RENDERING (GEOPTIMALISEERD) ---
     else if (step.inputType === "ivr_verify") {
-       const pinStr = fetchedIvrPin; // Nu gebruiken we de echte code!
+       const pinStr = fetchedIvrPin; 
        
-       // Spinner HTML Opbouw (3 cijfers)
        let digitsHtml = "";
        for(let char of pinStr) {
-           // We voegen standaard CSS toe om zeker te zijn dat de structuur klopt
            digitsHtml += `
              <div class="digit" style="display:inline-block; width:44px; height:56px; overflow:hidden; background:#f0f9f4; border:1px solid #c8e6c9; margin:0 4px; border-radius:8px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);">
                <div class="digit-inner" style="display:flex; flex-direction:column; text-align:center; font-size:28px; font-weight:800; color:#14B670; line-height:56px; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);"></div>
@@ -275,31 +270,33 @@
            const telUri = `tel:${IVR_NUMBER_DIAL},${pinStr}#`;
            html = `
              <div id="ivr-mobile" style="text-align:center; width:100%;">
-               <div style="font-size:13px; color:#555; margin-bottom:8px;">Jouw verificatiecode:</div>
-               <div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:15px;">
+               <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div>
+               <div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">
                  ${digitsHtml}
                </div>
                
-               <a href="${telUri}" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px;">
+               <a href="${telUri}" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">
                  📞 Bel Nu
                </a>
-               <div style="font-size:11px; color:#999;">Code wordt automatisch verstuurd</div>
+               <div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst)</div>
              </div>
            `;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
            html = `
              <div id="ivr-desktop" style="text-align:center; width:100%;">
-                <div style="font-size:14px; margin-bottom:8px; color:#555;">Bel: <strong style="font-size:18px;">${IVR_NUMBER_DISPLAY}</strong></div>
-                <div style="margin-bottom:10px; font-size:13px;">En toets deze code:</div>
+                <div style="font-size:15px; color:#444; margin-bottom:16px; font-weight:500;">
+                  Bel naar: <span style="font-size:26px; font-weight:800; color:#14B670; display:block; margin-top:6px; letter-spacing:1px;">${IVR_NUMBER_DISPLAY}</span>
+                </div>
+                <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">En toets deze code in:</div>
                 
-                <div id="pin-container-desktop" style="margin-bottom:20px;">
+                <div id="pin-container-desktop" style="margin-bottom:24px;">
                   <div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">
                     ${digitsHtml}
                   </div>
                 </div>
 
-                <button class="cta-primary" onclick="window.handleIVRCall()">Ik heb gebeld & bevestigd</button>
+                <button class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px;">Ik heb gebeld & bevestigd</button>
              </div>
            `;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
@@ -325,7 +322,7 @@
   }
 
   // =============================================================
-  // 6. SPINNER ANIMATIE (Precies zoals in IVR.js)
+  // 6. SPINNER ANIMATIE
   // =============================================================
   function animatePinRevealSpinner(pin, targetId) {
     const container = document.getElementById(targetId);
@@ -337,20 +334,18 @@
       if (!inner) return;
 
       inner.innerHTML = "";
-      // Maak kolom met cijfers 0 t/m 9
       for (let i = 0; i <= 9; i++) {
         const span = document.createElement("span");
         span.textContent = i;
         span.style.display = "block";
-        span.style.height = "56px"; // Exact zelfde hoogte als wrapper
+        span.style.height = "56px"; 
         inner.appendChild(span);
       }
 
-      // Bereken offset (56px per digit in plaats van 64px om het strakker te maken)
       const offset = parseInt(digit, 10) * 56;
       setTimeout(() => {
         inner.style.transform = `translateY(-${offset}px)`;
-      }, 100); // Korte delay voor smooth trigger
+      }, 100);
     });
   }
 
