@@ -1,5 +1,5 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + DIRECT COSPONSORS + IVR STYLING)
+// 💬 CHAT FORM LOGIC (Julia - NL + COSPONSOR AUTO-SUBMIT + FIX)
 // =============================================================
 
 (function() {
@@ -66,7 +66,7 @@
   const IVR_NUMBER_DIAL = "09061512"; 
   let fetchedIvrPin = "000"; 
   let coregFlow = []; 
-  let cosponsorsList = []; 
+  let cosponsorsList = []; // ✅ Opslag voor cosponsors
 
   // =============================================================
   // 2. ACHTERGROND API FETCHES (IVR, Coreg & Cosponsors)
@@ -139,7 +139,7 @@
         });
     } catch (err) { console.error("Coreg fetch error:", err); }
 
-    // Ophalen Cosponsors in de achtergrond
+    // ✅ Ophalen Cosponsors in de achtergrond
     try {
         const cospoUrl = `${baseUrl}/api/cosponsors.js`;
         const resCospo = await fetch(cospoUrl);
@@ -311,13 +311,7 @@
            html = `<div id="ivr-mobile" style="text-align:center; width:100%;"><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div><div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div><a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Bel Nu</a><div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst)</div></div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
-           html = `<div id="ivr-desktop" style="text-align:center; width:100%; background:#fcfdfd; padding:24px 20px; border-radius:12px; border:1px solid #e5e9ec; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
-                <div style="font-size:14px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:6px;">Bel naar:</div>
-                <div style="font-size:32px; font-weight:900; color:#14B670; margin-bottom:24px; text-shadow:0 1px 2px rgba(20,182,112,0.15);">${IVR_NUMBER_DISPLAY}</div>
-                <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:14px;">En toets deze code in:</div>
-                <div id="pin-container-desktop" style="margin-bottom:28px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div>
-                <button type="button" class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px; width:100%; padding:14px 0;">Ik heb gebeld & bevestigd</button>
-             </div>`;
+           html = `<div id="ivr-desktop" style="text-align:center; width:100%;"><div style="font-size:15px; color:#444; margin-bottom:16px; font-weight:500;">Bel naar: <span style="font-size:26px; font-weight:800; color:#14B670; display:block; margin-top:6px; letter-spacing:1px;">${IVR_NUMBER_DISPLAY}</span></div><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">En toets deze code in:</div><div id="pin-container-desktop" style="margin-bottom:24px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div><button type="button" class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px;">Ik heb gebeld & bevestigd</button></div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
@@ -553,23 +547,9 @@
 
   window.handleTermsAgree = function() { addMessage("user", "Ik ga akkoord"); runStep(currentStepIndex + 1); };
   
-  // ✅ DIRECT COSPONSORS VERSTUREN BIJ 'JA PRIMA'
   window.handlePartnerChoice = function(accepted) {
     sessionStorage.setItem("sponsorsAccepted", accepted ? "true" : "false");
     addMessage("user", accepted ? "Ja, prima" : "Nee, liever niet");
-    
-    if (accepted && cosponsorsList && cosponsorsList.length > 0 && window.buildPayload && window.fetchLead) {
-        console.log(`🚀 Partners geaccepteerd! Stuur leads direct naar ${cosponsorsList.length} cosponsors...`);
-        cosponsorsList.forEach(async (sponsor) => {
-            if(!sponsor.cid || !sponsor.sid) return;
-            try {
-                // We sturen het als shortform lead (bevat naam, gender, email, dob)
-                const spPayload = await window.buildPayload({ cid: sponsor.cid, sid: sponsor.sid, is_shortform: true });
-                window.fetchLead(spPayload);
-            } catch(err) { console.error(`Cosponsor ${sponsor.title} mislukt:`, err); }
-        });
-    }
-
     runStep(currentStepIndex + 1);
   };
 
@@ -632,19 +612,32 @@
   };
 
   // =============================================================
-  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS
+  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS (+ COSPONSORS)
   // =============================================================
   async function handleFlowComplete() {
       if (currentFlow === chatFlow) {
           controlsEl.innerHTML = ``; 
           typingEl.style.display = "flex"; scrollToBottom();
           
-          // Hoofdlead versturen nadat IVR is doorlopen
           if (window.buildPayload && window.fetchLead) {
               try {
-                  const payload = await window.buildPayload({ cid: "925", sid: "34", is_shortform: true });
+                  const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
                   await window.fetchLead(payload);
                   sessionStorage.setItem("shortFormCompleted", "true");
+                  
+                  // ✅ VERZEND LEADS NAAR ALLE COSPONSORS IN DE ACHTERGROND
+                  const sponsorsAccepted = sessionStorage.getItem("sponsorsAccepted") === "true";
+                  if (sponsorsAccepted && cosponsorsList && cosponsorsList.length > 0) {
+                      console.log(`🚀 Partners geaccepteerd! Stuur lead naar ${cosponsorsList.length} cosponsors...`);
+                      cosponsorsList.forEach(async (sponsor) => {
+                          if(!sponsor.cid || !sponsor.sid) return;
+                          try {
+                              const spPayload = await window.buildPayload({ cid: sponsor.cid, sid: sponsor.sid, is_shortform: true });
+                              window.fetchLead(spPayload);
+                          } catch(err) { console.error(`Cosponsor ${sponsor.title} mislukt:`, err); }
+                      });
+                  }
+                  
               } catch (e) { console.error("Fout bij versturen hoofdlead", e); }
           }
           
