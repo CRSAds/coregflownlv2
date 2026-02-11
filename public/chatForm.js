@@ -1,57 +1,29 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + MOBILE VIEWPORT FIX + API)
+// 💬 CHAT FORM LOGIC (Julia - NL + AUTO-DROPDOWN + SOVENDUS)
 // =============================================================
 
 (function() {
-  // --- CSS INJECTIE (Stabiele mobiele viewport & dropdown styling) ---
+  // --- CSS INJECTIE ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* BASIS CHAT INTERFACE */
+    /* VEILIGE CHAT AFMETINGEN */
     #chat-interface {
       width: 100% !important;
       max-width: 480px !important;
+      height: 600px !important;
+      max-height: 80vh !important;
       margin: 0 auto !important;
       display: flex !important;
       flex-direction: column !important;
       box-sizing: border-box !important;
       border-radius: 12px !important;
       overflow: hidden !important;
-      background: #ffffff !important;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.08) !important;
+      position: relative !important;
     }
 
-    /* DESKTOP / TABLET */
-    @media (min-width: 768px) {
-      #chat-interface {
-        height: 650px !important;
-        max-height: 80vh !important;
-        margin-top: 4vh !important;
-        margin-bottom: 4vh !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
-      }
-    }
-
-    /* MOBIEL: De magische 'dvh' (Dynamic Viewport Height) fix */
-    @media (max-width: 767px) {
-      #chat-interface {
-        height: 88dvh !important; /* Krimpt automatisch mee met toetsenbord! */
-        min-height: 400px !important;
-        margin-top: 15px !important;
-        margin-bottom: 15px !important;
-        border: 1px solid #eee !important;
-      }
-    }
-
-    /* Vaste elementen, scroll in het midden */
-    #chat-interface .chat-header { flex: 0 0 auto !important; }
-    #chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
-    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
-
-    /* Fix auto-zoom op iOS (voorkomt scherm inzoomen bij typen) */
-    input[type="text"], input[type="tel"], input[type="email"], select {
-      font-size: 16px !important; 
-    }
-
+    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
+    #chat-controls { flex: 0 0 auto !important; padding: 16px !important; }
+    
     /* COREG AUTO-SUBMIT DROPDOWN */
     #chat-controls .coreg-auto-dropdown {
       width: 100% !important;
@@ -64,32 +36,22 @@
       border: 1.5px solid #14B670 !important;
       box-shadow: none !important;
       cursor: pointer !important;
-      appearance: none !important; /* Verbergt de standaard lelijke pijl */
-      
-      /* Mooi Custom SVG Pijltje in de juiste kleur */
+      appearance: none !important; 
       background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2314B670%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
       background-repeat: no-repeat !important;
       background-position: right 14px top 50% !important;
       background-size: 12px auto !important;
     }
 
-    #chat-controls .coreg-auto-dropdown:focus {
-      outline: none !important;
-      box-shadow: 0 0 0 2px rgba(20,182,112,0.2) !important;
-    }
-    
-    #chat-controls .coreg-auto-dropdown option {
-      font-weight: 500 !important;
-      color: #333 !important;
-      background: #fff !important;
-    }
+    #chat-controls .coreg-auto-dropdown:focus { outline: none !important; box-shadow: 0 0 0 2px rgba(20,182,112,0.2) !important; }
+    #chat-controls .coreg-auto-dropdown option { font-weight: 500 !important; color: #333 !important; background: #fff !important; }
 
-    /* Nee Bedankt linkje (Strak eronder) */
+    /* Nee Bedankt linkje */
     #chat-controls .coreg-btn-decline {
       display: block !important; width: 100% !important; background: transparent !important; 
-      border: none !important; padding: 8px !important; color: #999 !important; 
+      border: none !important; padding: 4px !important; color: #999 !important; 
       text-decoration: underline !important; font-size: 13px !important; 
-      cursor: pointer !important; margin-top: 4px !important; text-align: center !important;
+      cursor: pointer !important; margin-top: 2px !important; text-align: center !important;
       box-shadow: none !important;
     }
   `;
@@ -263,7 +225,6 @@
         return;
     }
 
-    // Flush pending longform leads vlak voor Sovendus
     if (step.id === "sovendus") {
         const pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
         if (pending.length > 0 && window.buildPayload && window.fetchLead) {
@@ -340,7 +301,6 @@
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- COREG INTERACTIE (AUTO-SUBMIT DROPDOWN) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
@@ -359,23 +319,25 @@
         html += `<option value="no" data-cid="${camp.cid}" data-sid="${camp.sid}">Nee, bedankt</option>`;
         html += `</select></div>`;
     }
+    // --- SOVENDUS EINDE IN CHAT ---
     else if (step.inputType === "sovendus_end") {
-        html = `<div style="text-align:center; color:#14B670; font-weight:bold;">Je deelname is definitief!</div>`;
-        setTimeout(() => { if(window.renderSovendusBanner) window.renderSovendusBanner(); }, 500);
+        html = `
+          <div style="text-align:center; color:#14B670; font-weight:800; font-size:18px; margin-bottom:10px;">Je deelname is definitief! 🎉</div>
+          <div id="sovendus-loading" style="text-align:center; padding:12px; font-size:14px; color:#555;">Even geduld… jouw voordeel wordt geladen!</div>
+          <div id="sovendus-container-1" style="width:100%; min-height:60px; overflow:hidden; border-radius:8px;"></div>
+        `;
+        // Laad script en log impressions direct binnen deze context
+        setTimeout(() => loadSovendusInChat(), 100);
     }
 
     controlsEl.innerHTML = html;
     
-    // Alleen auto-focus op desktop om scroll/toetsenbord issues op mobiel te voorkomen
     const firstInput = controlsEl.querySelector("input");
     if(firstInput && !isMobile) setTimeout(() => firstInput.focus(), 100); 
 
     const inputs = controlsEl.querySelectorAll("input, select");
     inputs.forEach(input => {
-        // Herstel scrollpositie op mobiel als toetsenbord weggaat
-        input.addEventListener("blur", () => {
-            if(isMobile) window.scrollTo(0, 0);
-        });
+        input.addEventListener("blur", () => { if(isMobile) window.scrollTo(0, 0); });
         input.addEventListener("keydown", (e) => { 
             if(e.key === "Enter") {
                 e.preventDefault();
@@ -388,7 +350,88 @@
   }
 
   // =============================================================
-  // 6. ANIMATIES & INPUT HANDLERS
+  // 6. SOVENDUS CHAT MODULE
+  // =============================================================
+  let sovendusLogged = false;
+
+  function loadSovendusInChat() {
+      console.log("👉 Sovendus in-chat integratie gestart");
+      const containerId = "sovendus-container-1";
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const t_id = sessionStorage.getItem("t_id") || "unknown";
+      const gender = sessionStorage.getItem("gender") || "";
+      const firstname = sessionStorage.getItem("firstname") || "";
+      const lastname = sessionStorage.getItem("lastname") || "";
+      const email = sessionStorage.getItem("email") || "";
+      const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+
+      window.sovConsumer = {
+          consumerSalutation: gender,
+          consumerFirstName: firstname,
+          consumerLastName: lastname,
+          consumerEmail: email,
+      };
+
+      window.sovIframes = window.sovIframes || [];
+      window.sovIframes.push({
+          trafficSourceNumber: "5592",
+          trafficMediumNumber: "1",
+          sessionId: t_id,
+          timestamp,
+          orderId: "",
+          orderValue: "",
+          orderCurrency: "",
+          usedCouponCode: "",
+          iframeContainerId: containerId,
+      });
+
+      const script = document.createElement("script");
+      script.src = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
+      script.async = true;
+
+      script.onload = () => {
+          const observer = new MutationObserver((_, obs) => {
+              const iframe = container.querySelector("iframe");
+              if (iframe) {
+                  document.getElementById("sovendus-loading")?.remove();
+                  logSovendusImpression();
+                  obs.disconnect();
+              }
+          });
+          observer.observe(container, { childList: true, subtree: true });
+      };
+      document.body.appendChild(script);
+  }
+
+  function logSovendusImpression() {
+      if (sovendusLogged) return;
+      const t_id = sessionStorage.getItem("t_id");
+      const offer_id = sessionStorage.getItem("offer_id");
+      const sub_id = sessionStorage.getItem("sub_id") || sessionStorage.getItem("aff_id") || "unknown";
+
+      if (!t_id) return;
+      sovendusLogged = true;
+
+      let baseUrl = "https://globalcoregflow-nl.vercel.app";
+      if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
+          baseUrl = new URL(window.API_COREG).origin;
+      }
+      
+      const url = `${baseUrl}/api/sovendus-impression.js`;
+      
+      console.log("[Sovendus] In-chat impression gelogd:", { t_id, offer_id, sub_id });
+
+      fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ t_id, offer_id, sub_id })
+      }).catch(e => console.error("Sovendus API fout", e));
+  }
+
+  // =============================================================
+  // 7. ANIMATIES & INPUT HANDLERS
   // =============================================================
   function animatePinRevealSpinner(pin, targetId) {
     const container = document.getElementById(targetId);
@@ -519,7 +562,7 @@
   // --- COREG HANDLERS (AUTO-SUBMIT) ---
   window.handleCoregAutoChange = function(selectEl, fallbackCid, fallbackSid) {
       if(!selectEl.value) return;
-      selectEl.blur(); // Toetsenbord wegdrukken als ze een keuze maken
+      selectEl.blur(); 
       
       const opt = selectEl.options[selectEl.selectedIndex];
       const cid = opt.getAttribute("data-cid") || fallbackCid;
@@ -571,7 +614,7 @@
   };
 
   // =============================================================
-  // 7. TRANSITIE LOGICA TUSSEN DE FLOWS
+  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS
   // =============================================================
   async function handleFlowComplete() {
       if (currentFlow === chatFlow) {
@@ -606,7 +649,7 @@
   }
 
   // =============================================================
-  // 8. HELPERS
+  // 9. HELPERS
   // =============================================================
   function addMessage(sender, text) {
     const div = document.createElement("div");
