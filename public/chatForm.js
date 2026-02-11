@@ -12,7 +12,7 @@
     width: 100% !important;
     max-width: 480px !important;
     height: 600px !important;
-    max-height: 80vh !important;
+    max-height: 85vh !important;
     margin: 20px auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -37,7 +37,7 @@
 
   #chat-interface {
     width: 100% !important;
-    height: 85vh !important; /* Veilige hoogte, laat ruimte voor de browserbalk */
+    height: 80vh !important; /* Veilige hoogte, laat ruimte voor de browserbalk */
     min-height: 400px !important;
     margin: 10px auto !important;
     display: flex !important;
