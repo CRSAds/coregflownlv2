@@ -1,48 +1,32 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + COSPONSORS + AGE VALIDATION)
+// 💬 CHAT FORM LOGIC (Julia - NL + COSPONSOR AUTO-SUBMIT + FIX)
 // =============================================================
 
 (function() {
   // --- CSS INJECTIE ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* VEILIGE CHAT AFMETINGEN */
-    #chat-interface {
-      width: 100% !important;
-      max-width: 480px !important;
-      margin: 0 auto !important;
-      display: flex !important;
-      flex-direction: column !important;
-      box-sizing: border-box !important;
-      border-radius: 12px !important;
-      overflow: hidden !important;
-      background: #ffffff !important;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.08) !important;
-    }
-
-    /* DESKTOP / TABLET */
+    /* VEILIGE CHAT AFMETINGEN (Desktop / Tablet) */
     @media (min-width: 768px) {
       #chat-interface {
-        height: 650px !important;
-        max-height: 80vh !important;
-        margin-top: 4vh !important;
-        margin-bottom: 4vh !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
+        width: 100% !important; max-width: 480px !important; height: 600px !important; max-height: 80vh !important;
+        margin: 20px auto !important; display: flex !important; flex-direction: column !important;
+        box-sizing: border-box !important; border-radius: 12px !important; overflow: hidden !important; position: relative !important;
       }
     }
 
-    /* MOBIEL: dvh (Dynamic Viewport Height) fix */
+    /* MOBIEL: Voorkomt layout shifts bij toetsenbord */
     @media (max-width: 767px) {
+      html, body { overscroll-behavior-y: none; } 
       #chat-interface {
-        height: 88dvh !important;
-        min-height: 400px !important;
-        margin-top: 15px !important;
-        margin-bottom: 15px !important;
-        border: 1px solid #eee !important;
+        position: fixed !important; top: 10px !important; bottom: 10px !important; left: 10px !important; right: 10px !important;
+        width: calc(100% - 20px) !important; height: auto !important; max-height: none !important; margin: 0 !important;
+        display: flex !important; flex-direction: column !important; box-sizing: border-box !important;
+        border-radius: 12px !important; overflow: hidden !important; z-index: 999999 !important;
+        background: #f4f6f8 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
       }
     }
 
-    /* Vaste elementen, scroll in het midden */
     #chat-interface .chat-header { flex: 0 0 auto !important; }
     #chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
     #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
@@ -82,11 +66,17 @@
   const IVR_NUMBER_DIAL = "09061512"; 
   let fetchedIvrPin = "000"; 
   let coregFlow = []; 
+  let cosponsorsList = []; // ✅ Opslag voor cosponsors
 
   // =============================================================
-  // 2. ACHTERGROND API FETCHES (IVR & Coreg)
+  // 2. ACHTERGROND API FETCHES (IVR, Coreg & Cosponsors)
   // =============================================================
   async function initializeData() {
+    let baseUrl = "https://globalcoregflow-nl.vercel.app";
+    if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
+        baseUrl = new URL(window.API_COREG).origin;
+    }
+
     if (isLive) {
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
@@ -123,8 +113,9 @@
         } catch (err) { console.error("IVR Error:", err); }
     }
 
+    // Ophalen Coreg Campagnes
     try {
-        const apiUrl = window.API_COREG || "https://globalcoregflow-nl.vercel.app/api/coreg.js";
+        const apiUrl = window.API_COREG || `${baseUrl}/api/coreg.js`;
         const res = await fetch(apiUrl);
         const json = await res.json();
         const campaigns = (json.data || []).filter(c => !c.uitsluiten_standaardpad); 
@@ -147,6 +138,15 @@
             return { id: `coreg_${c.id}`, campaign: c, botTexts: botTexts, inputType: "coreg_interaction" };
         });
     } catch (err) { console.error("Coreg fetch error:", err); }
+
+    // ✅ Ophalen Cosponsors in de achtergrond
+    try {
+        const cospoUrl = `${baseUrl}/api/cosponsors.js`;
+        const resCospo = await fetch(cospoUrl);
+        const jsonCospo = await resCospo.json();
+        if(jsonCospo.data) cosponsorsList = jsonCospo.data;
+        console.log(`✅ ${cosponsorsList.length} Cosponsors geladen in de achtergrond.`);
+    } catch(err) { console.error("Cosponsor fetch error:", err); }
   }
 
   // =============================================================
@@ -161,7 +161,6 @@
       id: "name", botTexts: ["Duidelijk.", "Hoe heet je?"],
       inputType: "text-multi", fields: [{ id: "firstname", placeholder: "Voornaam" }, { id: "lastname", placeholder: "Achternaam" }]
     },
-    // ✅ TEKST GEWIJZIGD NAAR GEBOREN
     {
       id: "dob", botTexts: [(data) => `Aangenaam, ${data.firstname}!`, "Even checken of je 18+ bent. Wanneer ben je geboren? 🎂"],
       inputType: "dob", fieldId: "dob", placeholder: "DD / MM / JJJJ"
@@ -379,25 +378,9 @@
       const email = sessionStorage.getItem("email") || "";
       const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
 
-      window.sovConsumer = {
-          consumerSalutation: gender,
-          consumerFirstName: firstname,
-          consumerLastName: lastname,
-          consumerEmail: email,
-      };
-
+      window.sovConsumer = { consumerSalutation: gender, consumerFirstName: firstname, consumerLastName: lastname, consumerEmail: email };
       window.sovIframes = window.sovIframes || [];
-      window.sovIframes.push({
-          trafficSourceNumber: "5592",
-          trafficMediumNumber: "1",
-          sessionId: t_id,
-          timestamp,
-          orderId: "",
-          orderValue: "",
-          orderCurrency: "",
-          usedCouponCode: "",
-          iframeContainerId: containerId,
-      });
+      window.sovIframes.push({ trafficSourceNumber: "5592", trafficMediumNumber: "1", sessionId: t_id, timestamp, orderId: "", orderValue: "", orderCurrency: "", usedCouponCode: "", iframeContainerId: containerId });
 
       const script = document.createElement("script");
       script.src = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
@@ -422,22 +405,13 @@
       const t_id = sessionStorage.getItem("t_id");
       const offer_id = sessionStorage.getItem("offer_id");
       const sub_id = sessionStorage.getItem("sub_id") || sessionStorage.getItem("aff_id") || "unknown";
-
       if (!t_id) return;
       sovendusLogged = true;
 
       let baseUrl = "https://globalcoregflow-nl.vercel.app";
-      if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
-          baseUrl = new URL(window.API_COREG).origin;
-      }
-      
+      if (window.API_COREG && window.API_COREG.includes("vercel.app")) baseUrl = new URL(window.API_COREG).origin;
       const url = `${baseUrl}/api/sovendus-impression.js`;
-      
-      fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ t_id, offer_id, sub_id })
-      }).catch(e => console.error(e));
+      fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ t_id, offer_id, sub_id }) }).catch(e => console.error(e));
   }
 
   // =============================================================
@@ -548,25 +522,16 @@
         const cleanVal = val.replace(/\s+/g, ''); 
         if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in (DD/MM/JJJJ)."); return; }
         
-        // ✅ GEBOORTEDATUM / LEEFTIJD VALIDATIE (18 - 110 jaar)
         const parts = cleanVal.split('/');
         if (parts.length === 3) {
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10);
-            const year = parseInt(parts[2], 10);
-            
-            const dobDate = new Date(year, month - 1, day);
-            const today = new Date();
-            
-            // Check of de datum echt bestaat (bijv. geen 31 februari)
+            const day = parseInt(parts[0], 10); const month = parseInt(parts[1], 10); const year = parseInt(parts[2], 10);
+            const dobDate = new Date(year, month - 1, day); const today = new Date();
             if (dobDate.getFullYear() !== year || dobDate.getMonth() !== month - 1 || dobDate.getDate() !== day) {
                 alert("Deze datum bestaat niet. Check je invoer."); return;
             }
-            
             let age = today.getFullYear() - year;
             const m = today.getMonth() - (month - 1);
             if (m < 0 || (m === 0 && today.getDate() < day)) { age--; }
-            
             if (age < 18) { alert("Je moet minimaal 18 jaar oud zijn om deel te nemen."); return; }
             if (age > 110) { alert("Vul een geldige geboortedatum in."); return; }
         } else {
@@ -647,7 +612,7 @@
   };
 
   // =============================================================
-  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS (+ COSPONSOR FIX)
+  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS (+ COSPONSORS)
   // =============================================================
   async function handleFlowComplete() {
       if (currentFlow === chatFlow) {
@@ -660,17 +625,17 @@
                   await window.fetchLead(payload);
                   sessionStorage.setItem("shortFormCompleted", "true");
                   
-                  // ✅ COSPONSORS DOORSTUREN ALS ZE ZIJN GEACCEPTEERD
+                  // ✅ VERZEND LEADS NAAR ALLE COSPONSORS IN DE ACHTERGROND
                   const sponsorsAccepted = sessionStorage.getItem("sponsorsAccepted") === "true";
-                  if (sponsorsAccepted) {
-                      console.log("✅ Partners geaccepteerd. Cosponsors worden doorgestuurd.");
-                      if (typeof window.submitCosponsors === "function") {
-                          window.submitCosponsors();
-                      } else {
-                          // Fallback voor externe scripts die wachten op dit moment
-                          document.dispatchEvent(new Event("submitCosponsorsEvent"));
-                          document.dispatchEvent(new Event("shortFormSubmitted"));
-                      }
+                  if (sponsorsAccepted && cosponsorsList && cosponsorsList.length > 0) {
+                      console.log(`🚀 Partners geaccepteerd! Stuur lead naar ${cosponsorsList.length} cosponsors...`);
+                      cosponsorsList.forEach(async (sponsor) => {
+                          if(!sponsor.cid || !sponsor.sid) return;
+                          try {
+                              const spPayload = await window.buildPayload({ cid: sponsor.cid, sid: sponsor.sid, is_shortform: true });
+                              window.fetchLead(spPayload);
+                          } catch(err) { console.error(`Cosponsor ${sponsor.title} mislukt:`, err); }
+                      });
                   }
                   
               } catch (e) { console.error("Fout bij versturen hoofdlead", e); }
