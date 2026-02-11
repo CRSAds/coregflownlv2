@@ -1,12 +1,12 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + DROPDOWNS + API FIXES)
+// 💬 CHAT FORM LOGIC (Julia - NL + AUTO-DROPDOWN + API FIXES)
 // =============================================================
 
 (function() {
-  // --- CSS INJECTIE (Voor veilige afmetingen & compacte coreg) ---
+  // --- CSS INJECTIE ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* VEILIGE CHAT AFMETINGEN (Voor Mobiel & Desktop) */
+    /* VEILIGE CHAT AFMETINGEN */
     #chat-interface {
       width: 100% !important;
       max-width: 480px !important;
@@ -24,33 +24,36 @@
     #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
     #chat-controls { flex: 0 0 auto !important; padding: 16px !important; }
     
-    /* COREG COMPACTE BUTTONS */
-    #chat-controls .coreg-btn-compact {
+    /* COREG AUTO-SUBMIT DROPDOWN */
+    #chat-controls .coreg-auto-dropdown {
       width: 100% !important;
-      padding: 10px 14px !important; 
-      font-size: 14px !important;
+      padding: 12px 14px !important;
+      font-size: 15px !important;
       font-weight: 600 !important;
-      border-radius: 6px !important;
+      border-radius: 8px !important;
       background: #f0f9f4 !important; /* Lichtgroen */
       color: #14B670 !important;
       border: 1.5px solid #14B670 !important;
       box-shadow: none !important;
       cursor: pointer !important;
-      display: block !important;
-      transition: all 0.2s ease !important;
+      appearance: none !important; /* Verbergt de standaard lelijke pijl */
+      
+      /* Mooi Custom SVG Pijltje in de juiste kleur */
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2314B670%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 14px top 50% !important;
+      background-size: 12px auto !important;
     }
-    #chat-controls .coreg-btn-compact:hover {
-      background: #14B670 !important;
-      color: #fff !important;
+
+    #chat-controls .coreg-auto-dropdown:focus {
+      outline: none !important;
+      box-shadow: 0 0 0 2px rgba(20,182,112,0.2) !important;
     }
     
-    /* Nee Bedankt linkje (Strak eronder) */
-    #chat-controls .coreg-btn-decline {
-      display: block !important; width: 100% !important; background: transparent !important; 
-      border: none !important; padding: 4px !important; color: #999 !important; 
-      text-decoration: underline !important; font-size: 13px !important; 
-      cursor: pointer !important; margin-top: 2px !important; text-align: center !important;
-      box-shadow: none !important;
+    #chat-controls .coreg-auto-dropdown option {
+      font-weight: 500 !important;
+      color: #333 !important;
+      background: #fff !important;
     }
   `;
   document.head.appendChild(style);
@@ -76,7 +79,6 @@
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
         const subId = urlParams.get("sub_id") || "345";
-        
         let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
         if (!t_id) {
             t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
@@ -109,7 +111,7 @@
     }
 
     try {
-        const apiUrl = window.API_COREG || "https://coregflownlv2.vercel.app/api/coreg.js";
+        const apiUrl = window.API_COREG || "https://globalcoregflow-nl.vercel.app/api/coreg.js";
         const res = await fetch(apiUrl);
         const json = await res.json();
         const campaigns = (json.data || []).filter(c => !c.uitsluiten_standaardpad); 
@@ -293,30 +295,28 @@
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- COREG INTERACTIE (ALLES IS NU EEN DROPDOWN) ---
+    // --- COREG INTERACTIE (AUTO-SUBMIT DROPDOWN) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
         
         html = `<div class="chat-btn-group" style="flex-direction:column; gap:0;">`;
         
-        // Geforceerde Dropdown voor ALLE coreg campagnes
-        html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:10px; font-size:14px; border:1px solid #ccc; border-radius:6px; width:100%; background:#fff;">
-                    <option value="">Kies een optie...</option>`;
+        // 1 enkele dropdown, onChange submit direct
+        html += `<select id="coreg-select-${camp.id}" class="coreg-auto-dropdown" onchange="window.handleCoregAutoChange(this, '${camp.cid}', '${camp.sid}')">
+                    <option value="" disabled selected>Kies een optie...</option>`;
+        
+        // Alle JA opties (of andere positieve/dropdown antwoorden)
         answers.forEach(opt => {
             const val = opt.answer_value || "yes";
             const cid = opt.has_own_campaign ? opt.cid : camp.cid;
             const sid = opt.has_own_campaign ? opt.sid : camp.sid;
             html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
         });
-        html += `</select>`;
-        
-        // Bevestigen knop, direct onder dropdown
-        html += `<button type="button" class="coreg-btn-compact" style="margin-bottom:2px !important;" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
-        
-        // Nee bedankt optie (Strak eronder)
-        html += `<button type="button" class="coreg-btn-decline" onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')">Nee, bedankt</button>`;
-        html += `</div>`;
+
+        // De NEE bedankt optie (Altijd onderaan)
+        html += `<option value="no" data-cid="${camp.cid}" data-sid="${camp.sid}">Nee, bedankt</option>`;
+        html += `</select></div>`;
     }
     else if (step.inputType === "sovendus_end") {
         html = `<div style="text-align:center; color:#14B670; font-weight:bold;">Je deelname is definitief!</div>`;
@@ -366,7 +366,7 @@
   };
 
   window.submitChatText = async function(e) {
-    if (e) e.preventDefault(); // Voorkom per ongeluk form-submit!
+    if (e) e.preventDefault(); 
     const step = currentFlow[currentStepIndex];
     let userDisplay = "";
     
@@ -383,17 +383,19 @@
         typingEl.style.display = "flex"; scrollToBottom();
         
         try {
-            console.log("📍 Start API call voor postcode...");
+            console.log("📍 Start API call voor adres...");
             
-            // Flexibele Base URL bepaling (Voorkomt 404 errors)
-            let baseUrl = "";
+            // 💡 FIX: Altijd de exacte basis URL gebruiken zodat API call identiek is aan de werkende calls (.js extensie toevoegen!)
+            let baseUrl = "https://globalcoregflow-nl.vercel.app";
             if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
                 const urlObj = new URL(window.API_COREG);
                 baseUrl = urlObj.origin;
             }
             
-            const res = await fetch(baseUrl + "/api/validateAddressNL", {
-                method: "POST", headers: { "Content-Type": "application/json" },
+            // ✅ Cruciaal: voeg .js toe net als in formSubmit.js, dit voorkomt Vercel routing fouten
+            const res = await fetch(baseUrl + "/api/validateAddressNL.js", {
+                method: "POST", 
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ postcode: zip, huisnummer: num })
             });
             
@@ -406,10 +408,10 @@
                 sessionStorage.setItem("street", data.street);
                 sessionStorage.setItem("city", data.city);
                 addMessage("bot", `Gevonden! Je adres is:<br><strong>${data.street}, ${data.city}</strong>`);
-                runStep(currentStepIndex + 2); // ✅ Sla handmatige straatvraag over!
+                runStep(currentStepIndex + 2); // Sla straatvraag over!
                 return;
             } else {
-                console.warn("📍 Adres niet gevonden in API, fallback naar handmatig.");
+                console.warn("📍 Adres niet gevonden in API, ga door naar handmatig.");
                 addMessage("bot", "Ik kon je straat niet automatisch vinden. Vul het hieronder even handmatig in.");
             }
         } catch(err) { 
@@ -417,7 +419,7 @@
             typingEl.style.display = "none";
         }
         
-        // Als API faalt of adres onbekend is:
+        // Ga handmatig naar de volgende stap
         runStep(currentStepIndex + 1); 
         return;
     }
@@ -465,14 +467,15 @@
       runStep(currentStepIndex + 1); 
   };
 
-  // --- COREG HANDLERS ---
-  window.submitCoregDropdown = function(campId, fallbackCid, fallbackSid) {
-      const sel = document.getElementById(`coreg-select-${campId}`);
-      if(!sel || !sel.value) { alert("Kies een optie om verder te gaan."); return; }
-      const opt = sel.options[sel.selectedIndex];
+  // --- COREG HANDLERS (AUTO-SUBMIT) ---
+  window.handleCoregAutoChange = function(selectEl, fallbackCid, fallbackSid) {
+      if(!selectEl.value) return;
+      
+      const opt = selectEl.options[selectEl.selectedIndex];
       const cid = opt.getAttribute("data-cid") || fallbackCid;
       const sid = opt.getAttribute("data-sid") || fallbackSid;
-      window.submitCoregAnswer(sel.value, cid, sid, opt.text);
+      
+      window.submitCoregAnswer(selectEl.value, cid, sid, opt.text);
   };
 
   window.submitCoregAnswer = async function(answerValue, cid, sid, userText) {
