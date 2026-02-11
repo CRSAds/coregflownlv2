@@ -6,33 +6,61 @@
   // --- CSS INJECTIE ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* VEILIGE CHAT AFMETINGEN (Desktop / Tablet) */
-    @media (min-width: 768px) {
-      #chat-interface {
-        width: 100% !important; max-width: 480px !important; height: 600px !important; max-height: 80vh !important;
-        margin: 20px auto !important; display: flex !important; flex-direction: column !important;
-        box-sizing: border-box !important; border-radius: 12px !important; overflow: hidden !important; position: relative !important;
-      }
-    }
+   /* VEILIGE CHAT AFMETINGEN (Desktop / Tablet) */
+@media (min-width: 768px) {
+  #chat-interface {
+    width: 100% !important;
+    max-width: 480px !important;
+    height: 600px !important;
+    max-height: 80vh !important;
+    margin: 20px auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08) !important;
+  }
+}
 
-    /* MOBIEL: Voorkomt layout shifts bij toetsenbord */
-    @media (max-width: 767px) {
-      html, body { overscroll-behavior-y: none; } 
-      #chat-interface {
-        position: fixed !important; top: 10px !important; bottom: 10px !important; left: 10px !important; right: 10px !important;
-        width: calc(100% - 20px) !important; height: auto !important; max-height: none !important; margin: 0 !important;
-        display: flex !important; flex-direction: column !important; box-sizing: border-box !important;
-        border-radius: 12px !important; overflow: hidden !important; z-index: 999999 !important;
-        background: #f4f6f8 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
-      }
-    }
+/* MOBIEL: Robuuste, simpele positionering */
+@media (max-width: 767px) {
+  /* Voorkom scrollen van de pagina op de achtergrond */
+  body.chat-active {
+    overflow: hidden !important;
+    position: fixed; /* Helpt soms extra tegen body-scroll */
+    width: 100%;
+    height: 100%;
+  }
 
-    #chat-interface .chat-header { flex: 0 0 auto !important; }
-    #chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
-    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
+  #chat-interface {
+    width: 100% !important;
+    height: 85vh !important; /* Veilige hoogte, laat ruimte voor de browserbalk */
+    min-height: 400px !important;
+    margin: 10px auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    position: relative !important; /* Terug naar relative voor stabiliteit in Swipepages */
+    background: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+    z-index: 10 !important;
+  }
+}
 
-    /* Fix auto-zoom op iOS */
-    input[type="text"], input[type="tel"], input[type="email"], select { font-size: 16px !important; }
+/* Vaste elementen, scroll in het midden */
+#chat-interface .chat-header { flex: 0 0 auto !important; }
+#chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
+#chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
+
+/* Fix auto-zoom op iOS als font-size < 16px is */
+input[type="text"], input[type="tel"], input[type="email"], select {
+  font-size: 16px !important; 
+}
 
     /* COREG AUTO-SUBMIT DROPDOWN */
     #chat-controls .coreg-auto-dropdown {
