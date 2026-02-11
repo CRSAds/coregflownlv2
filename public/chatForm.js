@@ -208,7 +208,7 @@ input[type="text"], input[type="tel"], input[type="email"], select {
     },
     {
       id: "ivr", condition: () => isLive, 
-      botTexts: ["Bedankt! We moeten alleen nog even je deelname verifiëren om misbruik te voorkomen 🛡️", isMobile ? "Klik op de knop hieronder om direct te bellen." : "Bel het onderstaande nummer en toets de code in om te bevestigen."],
+      botTexts: ["Bedankt! Bevestig je deelname 🛡️", isMobile ? "Klik op de knop hieronder om direct te bellen." : "Bel het onderstaande nummer en toets de code in om te bevestigen."],
       inputType: "ivr_verify"
     }
   ];
@@ -336,7 +336,7 @@ input[type="text"], input[type="tel"], input[type="email"], select {
            digitsHtml += `<div class="digit" style="display:inline-block; width:44px; height:56px; overflow:hidden; background:#f0f9f4; border:1px solid #c8e6c9; margin:0 4px; border-radius:8px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);"><div class="digit-inner" style="display:flex; flex-direction:column; text-align:center; font-size:28px; font-weight:800; color:#14B670; line-height:56px; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);"></div></div>`;
        }
        if (isMobile) {
-           html = `<div id="ivr-mobile" style="text-align:center; width:100%;"><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div><div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div><a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Bel Nu</a><div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst)</div></div>`;
+           html = `<div id="ivr-mobile" style="text-align:center; width:100%;"><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div><div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div><a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Bel Nu</a><div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst, kosten zijn €1,10 per minuut. Volg de instructies op de lijn.)</div></div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
            html = `<div id="ivr-desktop" style="text-align:center; width:100%; background:#fcfdfd; padding:24px 20px; border-radius:12px; border:1px solid #e5e9ec; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
