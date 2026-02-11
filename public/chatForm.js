@@ -1,5 +1,5 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + AUTO-DROPDOWN + SOVENDUS)
+// 💬 CHAT FORM LOGIC (Julia - NL + COSPONSORS + AGE VALIDATION)
 // =============================================================
 
 (function() {
@@ -10,49 +10,62 @@
     #chat-interface {
       width: 100% !important;
       max-width: 480px !important;
-      height: 600px !important;
-      max-height: 80vh !important;
       margin: 0 auto !important;
       display: flex !important;
       flex-direction: column !important;
       box-sizing: border-box !important;
       border-radius: 12px !important;
       overflow: hidden !important;
-      position: relative !important;
+      background: #ffffff !important;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08) !important;
     }
 
-    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
-    #chat-controls { flex: 0 0 auto !important; padding: 16px !important; }
-    
+    /* DESKTOP / TABLET */
+    @media (min-width: 768px) {
+      #chat-interface {
+        height: 650px !important;
+        max-height: 80vh !important;
+        margin-top: 4vh !important;
+        margin-bottom: 4vh !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+      }
+    }
+
+    /* MOBIEL: dvh (Dynamic Viewport Height) fix */
+    @media (max-width: 767px) {
+      #chat-interface {
+        height: 88dvh !important;
+        min-height: 400px !important;
+        margin-top: 15px !important;
+        margin-bottom: 15px !important;
+        border: 1px solid #eee !important;
+      }
+    }
+
+    /* Vaste elementen, scroll in het midden */
+    #chat-interface .chat-header { flex: 0 0 auto !important; }
+    #chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
+    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
+
+    /* Fix auto-zoom op iOS */
+    input[type="text"], input[type="tel"], input[type="email"], select { font-size: 16px !important; }
+
     /* COREG AUTO-SUBMIT DROPDOWN */
     #chat-controls .coreg-auto-dropdown {
-      width: 100% !important;
-      padding: 12px 14px !important;
-      font-size: 15px !important;
-      font-weight: 600 !important;
-      border-radius: 8px !important;
-      background: #f0f9f4 !important; /* Lichtgroen */
-      color: #14B670 !important;
-      border: 1.5px solid #14B670 !important;
-      box-shadow: none !important;
-      cursor: pointer !important;
-      appearance: none !important; 
+      width: 100% !important; padding: 12px 14px !important; font-size: 15px !important; font-weight: 600 !important;
+      border-radius: 8px !important; background: #f0f9f4 !important; color: #14B670 !important; border: 1.5px solid #14B670 !important;
+      box-shadow: none !important; cursor: pointer !important; appearance: none !important; 
       background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2314B670%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
-      background-repeat: no-repeat !important;
-      background-position: right 14px top 50% !important;
-      background-size: 12px auto !important;
+      background-repeat: no-repeat !important; background-position: right 14px top 50% !important; background-size: 12px auto !important;
     }
-
     #chat-controls .coreg-auto-dropdown:focus { outline: none !important; box-shadow: 0 0 0 2px rgba(20,182,112,0.2) !important; }
     #chat-controls .coreg-auto-dropdown option { font-weight: 500 !important; color: #333 !important; background: #fff !important; }
 
     /* Nee Bedankt linkje */
     #chat-controls .coreg-btn-decline {
-      display: block !important; width: 100% !important; background: transparent !important; 
-      border: none !important; padding: 4px !important; color: #999 !important; 
-      text-decoration: underline !important; font-size: 13px !important; 
-      cursor: pointer !important; margin-top: 2px !important; text-align: center !important;
-      box-shadow: none !important;
+      display: block !important; width: 100% !important; background: transparent !important; border: none !important; 
+      padding: 8px !important; color: #999 !important; text-decoration: underline !important; font-size: 13px !important; 
+      cursor: pointer !important; margin-top: 4px !important; text-align: center !important; box-shadow: none !important;
     }
   `;
   document.head.appendChild(style);
@@ -148,8 +161,9 @@
       id: "name", botTexts: ["Duidelijk.", "Hoe heet je?"],
       inputType: "text-multi", fields: [{ id: "firstname", placeholder: "Voornaam" }, { id: "lastname", placeholder: "Achternaam" }]
     },
+    // ✅ TEKST GEWIJZIGD NAAR GEBOREN
     {
-      id: "dob", botTexts: [(data) => `Aangenaam, ${data.firstname}!`, "Even checken of je 18+ bent. Wanneer ben je jarig? 🎂"],
+      id: "dob", botTexts: [(data) => `Aangenaam, ${data.firstname}!`, "Even checken of je 18+ bent. Wanneer ben je geboren? 🎂"],
       inputType: "dob", fieldId: "dob", placeholder: "DD / MM / JJJJ"
     },
     {
@@ -225,6 +239,7 @@
         return;
     }
 
+    // Flush pending longform leads
     if (step.id === "sovendus") {
         const pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
         if (pending.length > 0 && window.buildPayload && window.fetchLead) {
@@ -238,7 +253,7 @@
                         f_2014_coreg_answer: coregAnswer
                     });
                     await window.fetchLead(payload);
-                } catch(e) { console.error("❌ Fout bij versturen Longform Lead", e); }
+                } catch(e) {}
             }
             sessionStorage.removeItem("pendingLongFormLeads");
         }
@@ -319,14 +334,12 @@
         html += `<option value="no" data-cid="${camp.cid}" data-sid="${camp.sid}">Nee, bedankt</option>`;
         html += `</select></div>`;
     }
-    // --- SOVENDUS EINDE IN CHAT ---
     else if (step.inputType === "sovendus_end") {
         html = `
           <div style="text-align:center; color:#14B670; font-weight:800; font-size:18px; margin-bottom:10px;">Je deelname is definitief! 🎉</div>
           <div id="sovendus-loading" style="text-align:center; padding:12px; font-size:14px; color:#555;">Even geduld… jouw voordeel wordt geladen!</div>
           <div id="sovendus-container-1" style="width:100%; min-height:60px; overflow:hidden; border-radius:8px;"></div>
         `;
-        // Laad script en log impressions direct binnen deze context
         setTimeout(() => loadSovendusInChat(), 100);
     }
 
@@ -355,7 +368,6 @@
   let sovendusLogged = false;
 
   function loadSovendusInChat() {
-      console.log("👉 Sovendus in-chat integratie gestart");
       const containerId = "sovendus-container-1";
       const container = document.getElementById(containerId);
       if (!container) return;
@@ -421,13 +433,11 @@
       
       const url = `${baseUrl}/api/sovendus-impression.js`;
       
-      console.log("[Sovendus] In-chat impression gelogd:", { t_id, offer_id, sub_id });
-
       fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ t_id, offer_id, sub_id })
-      }).catch(e => console.error("Sovendus API fout", e));
+      }).catch(e => console.error(e));
   }
 
   // =============================================================
@@ -461,7 +471,6 @@
     const step = currentFlow[currentStepIndex];
     let userDisplay = "";
     
-    // --- POSTCODE CHECK API LOGICA ---
     if (step.inputType === "address_zip_lookup") {
         const zipEl = document.getElementById("chat-input-zipcode");
         const numEl = document.getElementById("chat-input-housenumber");
@@ -480,8 +489,7 @@
         try {
             let baseUrl = "https://globalcoregflow-nl.vercel.app";
             if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
-                const urlObj = new URL(window.API_COREG);
-                baseUrl = urlObj.origin;
+                baseUrl = new URL(window.API_COREG).origin;
             }
             
             const res = await fetch(baseUrl + "/api/validateAddressNL.js", {
@@ -538,7 +546,33 @@
     else if (step.id === "dob") {
         const val = document.getElementById(`chat-input-dob`).value;
         const cleanVal = val.replace(/\s+/g, ''); 
-        if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in."); return; }
+        if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in (DD/MM/JJJJ)."); return; }
+        
+        // ✅ GEBOORTEDATUM / LEEFTIJD VALIDATIE (18 - 110 jaar)
+        const parts = cleanVal.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            
+            const dobDate = new Date(year, month - 1, day);
+            const today = new Date();
+            
+            // Check of de datum echt bestaat (bijv. geen 31 februari)
+            if (dobDate.getFullYear() !== year || dobDate.getMonth() !== month - 1 || dobDate.getDate() !== day) {
+                alert("Deze datum bestaat niet. Check je invoer."); return;
+            }
+            
+            let age = today.getFullYear() - year;
+            const m = today.getMonth() - (month - 1);
+            if (m < 0 || (m === 0 && today.getDate() < day)) { age--; }
+            
+            if (age < 18) { alert("Je moet minimaal 18 jaar oud zijn om deel te nemen."); return; }
+            if (age > 110) { alert("Vul een geldige geboortedatum in."); return; }
+        } else {
+            alert("Vul een geldige datum in (DD/MM/JJJJ)."); return;
+        }
+
         sessionStorage.setItem("dob", cleanVal); userDisplay = val;
     }
 
@@ -559,7 +593,6 @@
       runStep(currentStepIndex + 1); 
   };
 
-  // --- COREG HANDLERS (AUTO-SUBMIT) ---
   window.handleCoregAutoChange = function(selectEl, fallbackCid, fallbackSid) {
       if(!selectEl.value) return;
       selectEl.blur(); 
@@ -614,7 +647,7 @@
   };
 
   // =============================================================
-  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS
+  // 8. TRANSITIE LOGICA TUSSEN DE FLOWS (+ COSPONSOR FIX)
   // =============================================================
   async function handleFlowComplete() {
       if (currentFlow === chatFlow) {
@@ -626,7 +659,21 @@
                   const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
                   await window.fetchLead(payload);
                   sessionStorage.setItem("shortFormCompleted", "true");
-              } catch (e) {}
+                  
+                  // ✅ COSPONSORS DOORSTUREN ALS ZE ZIJN GEACCEPTEERD
+                  const sponsorsAccepted = sessionStorage.getItem("sponsorsAccepted") === "true";
+                  if (sponsorsAccepted) {
+                      console.log("✅ Partners geaccepteerd. Cosponsors worden doorgestuurd.");
+                      if (typeof window.submitCosponsors === "function") {
+                          window.submitCosponsors();
+                      } else {
+                          // Fallback voor externe scripts die wachten op dit moment
+                          document.dispatchEvent(new Event("submitCosponsorsEvent"));
+                          document.dispatchEvent(new Event("shortFormSubmitted"));
+                      }
+                  }
+                  
+              } catch (e) { console.error("Fout bij versturen hoofdlead", e); }
           }
           
           await new Promise(r => setTimeout(r, 600)); 
