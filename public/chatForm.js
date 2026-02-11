@@ -1,42 +1,62 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + API FIXES + POSTCODE + LONGFORM)
+// 💬 CHAT FORM LOGIC (Julia - NL + UI FIXES + API FIXES)
 // =============================================================
 
 (function() {
-  // --- CSS INJECTIE (Mobiele hoogte, desktop hoogte & compacte buttons) ---
+  // --- CSS INJECTIE (Voor veilige afmetingen & compacte buttons) ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* Mobiel: Chat vult exact het scherm */
-    @media (max-width: 767px) {
-      #chat-interface {
-        position: fixed !important; top: 0; left: 0; right: 0; bottom: 0;
-        height: 100dvh !important; max-height: 100dvh !important; width: 100vw !important;
-        z-index: 999999 !important; border-radius: 0 !important;
-        display: flex !important; flex-direction: column !important; margin: 0 !important;
-      }
+    /* VEILIGE CHAT AFMETINGEN (Voor Mobiel & Desktop) */
+    #chat-interface {
+      width: 100% !important;
+      max-width: 480px !important;
+      height: 600px !important;
+      max-height: 80vh !important; /* Voorkomt buiten beeld vallen op kleine mobieltjes */
+      margin: 0 auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-sizing: border-box !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      position: relative !important;
     }
-    /* Desktop/Tablet: Nette maximale hoogte */
-    @media (min-width: 768px) {
-      #chat-interface {
-        height: 700px !important; max-height: 80vh !important;
-        border-radius: 12px !important; margin: 20px auto !important;
-        display: flex !important; flex-direction: column !important;
-      }
-    }
-    /* Scroll fix voor de geschiedenis */
+
     #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
-    #chat-controls { flex: 0 0 auto !important; }
+    #chat-controls { flex: 0 0 auto !important; padding: 16px !important; }
     
-    /* Compacte Coreg Buttons */
-    .coreg-btn-compact {
-      padding: 8px 12px !important; font-size: 13px !important;
-      margin-bottom: 6px !important; min-height: 38px !important;
-      line-height: 1.2 !important; width: 100% !important; border-radius: 6px !important;
+    /* COREG COMPACTE BUTTONS (Forceer eigen stijl, negeer cta-primary) */
+    #chat-controls .coreg-btn-compact {
+      width: 100% !important;
+      padding: 10px 14px !important; 
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      margin-bottom: 8px !important; 
+      border-radius: 8px !important;
+      background: #f0f9f4 !important; /* Lichtgroen */
+      color: #14B670 !important;
+      border: 1.5px solid #14B670 !important;
+      box-shadow: none !important;
+      cursor: pointer !important;
+      display: block !important;
+      transition: all 0.2s ease !important;
+    }
+    #chat-controls .coreg-btn-compact:hover {
+      background: #14B670 !important;
+      color: #fff !important;
+    }
+    
+    /* Nee Bedankt knopje */
+    #chat-controls .coreg-btn-decline {
+      display: block !important; width: 100% !important; background: transparent !important; 
+      border: none !important; padding: 8px !important; color: #999 !important; 
+      text-decoration: underline !important; font-size: 13px !important; 
+      cursor: pointer !important; margin-top: 2px !important; text-align: center !important;
+      box-shadow: none !important;
     }
   `;
   document.head.appendChild(style);
 
-  // 1. VARIABELEN
+  // 1. VARIABELEN VOORAF DECLAREREN
   let historyEl, controlsEl, typingEl, chatInterface;
   let currentStepIndex = 0;
   
@@ -50,13 +70,15 @@
   let coregFlow = []; 
 
   // =============================================================
-  // 2. API FETCHES (Achtergrond)
+  // 2. ACHTERGROND API FETCHES (IVR & Coreg)
   // =============================================================
   async function initializeData() {
+    // A. IVR Ophalen (Alleen als status=live)
     if (isLive) {
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
         const subId = urlParams.get("sub_id") || "345";
+        
         let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
         if (!t_id) {
             t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
@@ -88,6 +110,7 @@
         } catch (err) { console.error("IVR Error:", err); }
     }
 
+    // B. Coreg Campagnes Ophalen
     try {
         const apiUrl = window.API_COREG || "https://coregflownlv2.vercel.app/api/coreg.js";
         const res = await fetch(apiUrl);
@@ -203,7 +226,7 @@
         return;
     }
 
-    // Flush pending longform leads vlak voor Sovendus
+    // ✅ FIX: Verzend de opgespaarde Long Form leads zodra adres bekend is (vlak voor sovendus)
     if (step.id === "sovendus") {
         const pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
         if (pending.length > 0 && window.buildPayload && window.fetchLead) {
@@ -213,7 +236,7 @@
                     window.fetchLead(payload);
                 } catch(e) { console.error(e); }
             });
-            sessionStorage.removeItem("pendingLongFormLeads"); // Clear queue
+            sessionStorage.removeItem("pendingLongFormLeads"); // Leegmaken
         }
     }
 
@@ -274,7 +297,7 @@
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- COREG INTERACTIE (COMPACTE BUTTONS) ---
+    // --- COREG INTERACTIE (MET COMPACTE BUTTONS) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
@@ -292,17 +315,18 @@
                 html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
             });
             html += `</select>`;
-            html += `<button class="cta-primary coreg-btn-compact" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
+            html += `<button class="coreg-btn-compact" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
         } else {
+            // Nu gebruiken we strict de .coreg-btn-compact
             answers.forEach(opt => {
                 const cid = opt.has_own_campaign ? opt.cid : camp.cid;
                 const sid = opt.has_own_campaign ? opt.sid : camp.sid;
                 const val = opt.answer_value || "yes";
-                html += `<button class="cta-primary coreg-btn-compact" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
+                html += `<button class="coreg-btn-compact" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
             });
         }
         
-        html += `<button onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')" style="display:block; width:100%; background:none; border:none; padding:8px; color:#999; text-decoration:underline; font-size:12px; cursor:pointer; margin-top:4px;">Nee, bedankt</button>`;
+        html += `<button class="coreg-btn-decline" onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')">Nee, bedankt</button>`;
         html += `</div>`;
     }
     else if (step.inputType === "sovendus_end") {
@@ -351,7 +375,7 @@
     const step = currentFlow[currentStepIndex];
     let userDisplay = "";
     
-    // --- POSTCODE CHECK (API) ---
+    // --- POSTCODE CHECK API LOGICA ---
     if (step.inputType === "address_zip_lookup") {
         const zip = document.getElementById("chat-input-zipcode").value.trim();
         const num = document.getElementById("chat-input-housenumber").value.trim();
@@ -369,20 +393,26 @@
                 body: JSON.stringify({ postcode: zip, huisnummer: num })
             });
             const data = await res.json();
+            console.log("📍 Adres API Check Resultaat:", data);
             
             typingEl.style.display = "none";
             
-            if (data.valid) {
+            if (data.valid && data.street && data.city) {
                 sessionStorage.setItem("street", data.street);
                 sessionStorage.setItem("city", data.city);
                 addMessage("bot", `Gevonden! Je adres is:<br><strong>${data.street}, ${data.city}</strong>`);
-                runStep(currentStepIndex + 2); // Sla handmatige straatvraag over!
+                // ✅ Sla de straat-vraag over!
+                runStep(currentStepIndex + 2); 
                 return;
+            } else {
+                addMessage("bot", "Ik kon je straat niet automatisch vinden. Vul het hieronder even handmatig in.");
             }
-        } catch(e) { console.error("Adres validatie fout:", e); }
+        } catch(e) { 
+            console.error("📍 Adres validatie fout:", e); 
+            typingEl.style.display = "none";
+        }
         
-        // Als API faalt of adres niet gevonden, ga naar handmatige invoer
-        typingEl.style.display = "none";
+        // Ga handmatig naar de volgende stap als we hier komen
         runStep(currentStepIndex + 1); 
         return;
     }
@@ -408,7 +438,7 @@
     }
     else if (step.id === "dob") {
         const val = document.getElementById(`chat-input-dob`).value;
-        const cleanVal = val.replace(/\s+/g, ''); // Fix: Verwijder spaties voor Databowl
+        const cleanVal = val.replace(/\s+/g, ''); // Fix voor Databowl
         if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in."); return; }
         sessionStorage.setItem("dob", cleanVal); userDisplay = val;
     }
@@ -430,7 +460,7 @@
       runStep(currentStepIndex + 1); 
   };
 
-  // --- COREG HANDLERS (LOGICA VERBETERD) ---
+  // --- COREG HANDLERS ---
   window.submitCoregDropdown = function(campId, fallbackCid, fallbackSid) {
       const sel = document.getElementById(`coreg-select-${campId}`);
       if(!sel || !sel.value) { alert("Kies een optie om verder te gaan."); return; }
@@ -455,17 +485,15 @@
            sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${cid}`, answerValue);
       }
 
-      // Verwerk Lead (Alleen als antwoord "Ja" / Positief is)
+      // Verwerk Lead (Alleen als positief)
       if (answerValue !== "no") {
           const isLongForm = camp.requiresLongForm || camp.requires_long_form === true || camp.requires_long_form === "true";
           
           if (isLongForm) {
-              // Zet in de wachtrij voor later (na invullen adres/telefoon)
               let pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
               if (!pending.some(p => p.cid === cid)) pending.push({ cid, sid });
               sessionStorage.setItem("pendingLongFormLeads", JSON.stringify(pending));
           } else {
-              // Direct verzenden (Shortform coreg)
               if (window.buildPayload && window.fetchLead) {
                   try {
                       const payload = await window.buildPayload({ cid, sid, is_shortform: false });
@@ -475,7 +503,7 @@
           }
       }
 
-      // Multistep Logica: Als we "Nee" zeggen, sla rest van campagne over
+      // ✅ FIX: Sla de overige vragen van een multistep campagne over bij een NEE antwoord
       let nextIdx = currentStepIndex + 1;
       if (answerValue === "no" && currentFlow === coregFlow) {
           while (nextIdx < coregFlow.length && coregFlow[nextIdx].campaign.cid === camp.cid) {
