@@ -1,63 +1,58 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + KEYBOARD FIX + STYLING FIX)
+// 💬 CHAT FORM LOGIC (Julia - NL + MOBILE VIEWPORT FIX + API)
 // =============================================================
 
 (function() {
-  // --- CSS INJECTIE ---
+  // --- CSS INJECTIE (Stabiele mobiele viewport & dropdown styling) ---
   const style = document.createElement('style');
   style.innerHTML = `
-    /* VEILIGE CHAT AFMETINGEN (Desktop / Tablet) */
+    /* BASIS CHAT INTERFACE */
+    #chat-interface {
+      width: 100% !important;
+      max-width: 480px !important;
+      margin: 0 auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-sizing: border-box !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      background: #ffffff !important;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08) !important;
+    }
+
+    /* DESKTOP / TABLET */
     @media (min-width: 768px) {
       #chat-interface {
-        width: 100% !important;
-        max-width: 480px !important;
-        height: 600px !important;
+        height: 650px !important;
         max-height: 80vh !important;
-        margin: 20px auto !important;
-        display: flex !important;
-        flex-direction: column !important;
-        box-sizing: border-box !important;
-        border-radius: 12px !important;
-        overflow: hidden !important;
-        position: relative !important;
+        margin-top: 4vh !important;
+        margin-bottom: 4vh !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
       }
     }
 
-    /* MOBIELE FIX: Fixed positioning met marges. Toetsenbord schuift dit netjes in/uit elkaar */
+    /* MOBIEL: De magische 'dvh' (Dynamic Viewport Height) fix */
     @media (max-width: 767px) {
-      html, body { overscroll-behavior-y: none; } /* Voorkomt rubber-banding */
       #chat-interface {
-        position: fixed !important;
-        top: 10px !important;
-        bottom: 10px !important;
-        left: 10px !important;
-        right: 10px !important;
-        width: calc(100% - 20px) !important;
-        height: auto !important; /* Auto rekt zich uit tussen top en bottom */
-        max-height: none !important;
-        margin: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        box-sizing: border-box !important;
-        border-radius: 12px !important;
-        overflow: hidden !important;
-        z-index: 999999 !important;
-        background: #f4f6f8 !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+        height: 88dvh !important; /* Krimpt automatisch mee met toetsenbord! */
+        min-height: 400px !important;
+        margin-top: 15px !important;
+        margin-bottom: 15px !important;
+        border: 1px solid #eee !important;
       }
     }
 
-    /* De flexbox zorgt dat header en input altijd zichtbaar blijven, history scrollt */
+    /* Vaste elementen, scroll in het midden */
     #chat-interface .chat-header { flex: 0 0 auto !important; }
     #chat-interface .chat-controls { flex: 0 0 auto !important; padding: 16px !important; background:#fff !important; }
-    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }
+    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; background: #f4f6f8 !important; }
 
-    /* Fix auto-zoom op iOS als font-size < 16px is */
+    /* Fix auto-zoom op iOS (voorkomt scherm inzoomen bij typen) */
     input[type="text"], input[type="tel"], input[type="email"], select {
       font-size: 16px !important; 
     }
 
-    /* 🎨 DE TERUGGEHAALDE COREG AUTO-SUBMIT DROPDOWN STYLING */
+    /* COREG AUTO-SUBMIT DROPDOWN */
     #chat-controls .coreg-auto-dropdown {
       width: 100% !important;
       padding: 12px 14px !important;
@@ -88,6 +83,15 @@
       color: #333 !important;
       background: #fff !important;
     }
+
+    /* Nee Bedankt linkje (Strak eronder) */
+    #chat-controls .coreg-btn-decline {
+      display: block !important; width: 100% !important; background: transparent !important; 
+      border: none !important; padding: 8px !important; color: #999 !important; 
+      text-decoration: underline !important; font-size: 13px !important; 
+      cursor: pointer !important; margin-top: 4px !important; text-align: center !important;
+      box-shadow: none !important;
+    }
   `;
   document.head.appendChild(style);
 
@@ -112,6 +116,7 @@
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
         const subId = urlParams.get("sub_id") || "345";
+        
         let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
         if (!t_id) {
             t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
@@ -361,25 +366,24 @@
 
     controlsEl.innerHTML = html;
     
-    // Voorkom scroll issues: Alleen auto-focus op desktop
+    // Alleen auto-focus op desktop om scroll/toetsenbord issues op mobiel te voorkomen
     const firstInput = controlsEl.querySelector("input");
     if(firstInput && !isMobile) setTimeout(() => firstInput.focus(), 100); 
 
     const inputs = controlsEl.querySelectorAll("input, select");
     inputs.forEach(input => {
-        // Zorg dat we op mobiel weer bovenaan staan als het toetsenbord weggaat
+        // Herstel scrollpositie op mobiel als toetsenbord weggaat
         input.addEventListener("blur", () => {
             if(isMobile) window.scrollTo(0, 0);
         });
         input.addEventListener("keydown", (e) => { 
             if(e.key === "Enter") {
                 e.preventDefault();
-                input.blur(); // Forceer sluiten toetsenbord op mobiel
+                input.blur(); 
                 window.submitChatText(e); 
             }
         });
     });
-    
     if (step.id === "dob") initDobMask();
   }
 
