@@ -1,5 +1,5 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + IVR Final + LongForm)
+// 💬 CHAT FORM LOGIC (Julia - NL + REAL IVR API + LongForm)
 // =============================================================
 
 (function() {
@@ -15,14 +15,70 @@
   // IVR Settings
   const IVR_NUMBER_DISPLAY = "0906-1512"; 
   const IVR_NUMBER_DIAL = "09061512"; 
-  // ✅ CODE AANGEPAST: 3 cijfers (100-999)
-  const USER_PIN = Math.floor(100 + Math.random() * 900); 
+  let fetchedIvrPin = "000"; // Wordt overschreven door de API
 
   // =============================================================
-  // 2. FLOW CONFIGURATIES
+  // 2. IVR API LOGICA (Achtergrond fetch)
   // =============================================================
+  async function initializeIVR() {
+    if (!isLive) return; // Geen onnodige API calls als we niet live zijn
 
-  // FLOW A: Short Form
+    const affId = urlParams.get("aff_id") || "123";
+    const offerId = urlParams.get("offer_id") || "234";
+    const subId = urlParams.get("sub_id") || "345";
+    
+    // Genereer of haal Transaction ID op
+    let t_id = urlParams.get("t_id") || localStorage.getItem("t_id");
+    if (!t_id) {
+        t_id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+        localStorage.setItem("t_id", t_id);
+    }
+    
+    localStorage.setItem("aff_id", affId);
+    localStorage.setItem("offer_id", offerId);
+    localStorage.setItem("sub_id", subId);
+
+    try {
+        // Stap 1: Registreer Visit
+        let internalVisitId = localStorage.getItem("internalVisitId");
+        if (!internalVisitId) {
+            const resVisit = await fetch("https://cdn.909support.com/NL/4.1/assets/php/register_visit.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ clickId: t_id, affId, offerId, subId, subId2: subId })
+            });
+            const dataVisit = await resVisit.json();
+            if (dataVisit.internalVisitId) {
+                internalVisitId = dataVisit.internalVisitId;
+                localStorage.setItem("internalVisitId", internalVisitId);
+            }
+        }
+
+        // Stap 2: Vraag PIN aan
+        if (internalVisitId) {
+            const resPin = await fetch("https://cdn.909support.com/NL/4.1/stage/assets/php/request_pin.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ clickId: t_id, internalVisitId })
+            });
+            const dataPin = await resPin.json();
+            if (dataPin.pincode) {
+                fetchedIvrPin = dataPin.pincode.toString().padStart(3, "0");
+                console.log("✅ IVR PIN Succesvol opgehaald:", fetchedIvrPin);
+            }
+        }
+    } catch (err) {
+        console.error("❌ Fout bij ophalen IVR PIN:", err);
+    }
+  }
+
+  // =============================================================
+  // 3. FLOW CONFIGURATIES
+  // =============================================================
   const chatFlow = [
     {
       id: "gender",
@@ -64,22 +120,19 @@
       btnAccept: "Ja, prima",
       btnDecline: "Nee, liever niet"
     },
-    // --- IVR STAP (Alleen als status=live) ---
     {
       id: "ivr",
       condition: () => isLive, 
       botTexts: [
         "Bedankt! We moeten alleen nog even je deelname verifiëren om misbruik te voorkomen 🛡️",
         isMobile 
-          ? "Klik op de knop hieronder om direct te bellen." // Tekst aangepast (geen gratis)
+          ? "Klik op de knop hieronder om direct te bellen." 
           : "Bel het onderstaande nummer en toets de code in om te bevestigen."
       ],
-      inputType: "ivr_verify",
-      pin: USER_PIN
+      inputType: "ivr_verify"
     }
   ];
 
-  // FLOW B: Long Form (Na Coreg)
   const longChatFlow = [
     {
       id: "address_zip",
@@ -110,24 +163,25 @@
   let currentFlow = chatFlow; 
 
   // =============================================================
-  // 3. INIT & LISTENERS
+  // 4. INIT & LISTENERS
   // =============================================================
-  
   function startLongFormChat() {
       console.log("Chat resuming for Long Form...");
       if(!chatInterface) return;
-      
       chatInterface.classList.remove("finished");
       chatInterface.classList.add("visible");
       controlsEl.innerHTML = "";
-
       currentFlow = longChatFlow;
       runStep(0);
   };
   
   window.startLongFormChat = startLongFormChat;
 
-  document.addEventListener("DOMContentLoaded", initChat);
+  document.addEventListener("DOMContentLoaded", () => {
+      initializeIVR(); // Start de fetch in de achtergrond!
+      initChat();
+  });
+  
   document.addEventListener("coregFlowFinished", startLongFormChat);
 
   function initChat() {
@@ -145,7 +199,7 @@
   }
 
   // =============================================================
-  // 4. CORE LOGICA
+  // 5. CORE LOGICA & RENDERING
   // =============================================================
   async function runStep(index) {
     if (index >= currentFlow.length) {
@@ -154,7 +208,6 @@
     }
 
     const step = currentFlow[index];
-    
     if (step.condition && !step.condition()) {
         runStep(index + 1);
         return;
@@ -169,13 +222,11 @@
       scrollToBottom();
       await new Promise(r => setTimeout(r, 800)); 
       typingEl.style.display = "none";
-
       let text = typeof textTemplate === "function" ? textTemplate(getAllData()) : textTemplate;
       addMessage("bot", text);
     }
 
     renderControls(step);
-    
     controlsEl.style.transition = "opacity 0.3s";
     controlsEl.style.opacity = "1";
     scrollToBottom();
@@ -196,11 +247,8 @@
     else if (step.inputType === "dob") {
        html = `<div style="display:flex; gap:10px; width:100%;"><input type="tel" inputmode="numeric" id="chat-input-dob" class="chat-input-text" placeholder="DD / MM / JJJJ" autocomplete="bday" maxlength="14"> <button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
     }
-    else if (step.inputType === "email") {
-        html = `<div style="display:flex; gap:10px; width:100%;"><input type="email" id="chat-input-${step.fieldId}" class="chat-input-text" placeholder="${step.placeholder}" autocomplete="email"><button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
-    }
-    else if (step.inputType === "tel") { 
-        html = `<div style="display:flex; gap:10px; width:100%;"><input type="tel" id="chat-input-${step.fieldId}" class="chat-input-text" placeholder="${step.placeholder}" autocomplete="tel"><button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
+    else if (step.inputType === "email" || step.inputType === "tel") {
+        html = `<div style="display:flex; gap:10px; width:100%;"><input type="${step.inputType}" id="chat-input-${step.fieldId}" class="chat-input-text" placeholder="${step.placeholder}" autocomplete="${step.inputType}"><button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
     }
     else if (step.inputType === "terms_agree") {
       html = `<button class="cta-primary" onclick="window.handleTermsAgree()">${step.buttonText}</button><div style="font-size:12px; color:#999; text-align:center; margin-top:10px; line-height:1.4;">${step.subText}</div>`;
@@ -211,16 +259,25 @@
     
     // --- IVR RENDERING ---
     else if (step.inputType === "ivr_verify") {
-       const pinStr = step.pin.toString();
+       const pinStr = fetchedIvrPin; // Nu gebruiken we de echte code!
        
+       // Spinner HTML Opbouw (3 cijfers)
+       let digitsHtml = "";
+       for(let char of pinStr) {
+           // We voegen standaard CSS toe om zeker te zijn dat de structuur klopt
+           digitsHtml += `
+             <div class="digit" style="display:inline-block; width:44px; height:56px; overflow:hidden; background:#f0f9f4; border:1px solid #c8e6c9; margin:0 4px; border-radius:8px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05);">
+               <div class="digit-inner" style="display:flex; flex-direction:column; text-align:center; font-size:28px; font-weight:800; color:#14B670; line-height:56px; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);"></div>
+             </div>`;
+       }
+
        if (isMobile) {
-           // MOBIEL VERSIE: Toont code GROOT + Knop
            const telUri = `tel:${IVR_NUMBER_DIAL},${pinStr}#`;
            html = `
              <div id="ivr-mobile" style="text-align:center; width:100%;">
-               <div style="background:#f0f9f4; padding:10px; border-radius:10px; margin-bottom:12px; border:1px solid #c8e6c9;">
-                  <div style="font-size:13px; color:#555;">Jouw verificatiecode:</div>
-                  <div style="font-size:26px; font-weight:800; color:#14B670; letter-spacing:1px;">${pinStr}</div>
+               <div style="font-size:13px; color:#555; margin-bottom:8px;">Jouw verificatiecode:</div>
+               <div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:15px;">
+                 ${digitsHtml}
                </div>
                
                <a href="${telUri}" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px;">
@@ -229,20 +286,15 @@
                <div style="font-size:11px; color:#999;">Code wordt automatisch verstuurd</div>
              </div>
            `;
+           setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
-           // DESKTOP VERSIE: Spinners
-           let digitsHtml = "";
-           for(let char of pinStr) {
-               digitsHtml += `<div class="digit" style="display:inline-block; width:40px; height:50px; background:#f0f9f4; border:1px solid #ccc; margin:0 4px; line-height:50px; font-size:24px; font-weight:bold; border-radius:6px; color:#14B670;">${char}</div>`;
-           }
-
            html = `
              <div id="ivr-desktop" style="text-align:center; width:100%;">
-                <div style="font-size:14px; margin-bottom:8px; color:#555;">Bel: <strong>${IVR_NUMBER_DISPLAY}</strong></div>
-                <div style="margin-bottom:15px;">En toets deze code:</div>
+                <div style="font-size:14px; margin-bottom:8px; color:#555;">Bel: <strong style="font-size:18px;">${IVR_NUMBER_DISPLAY}</strong></div>
+                <div style="margin-bottom:10px; font-size:13px;">En toets deze code:</div>
                 
                 <div id="pin-container-desktop" style="margin-bottom:20px;">
-                  <div class="pin-spinner" style="display:flex; justify-content:center;">
+                  <div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">
                     ${digitsHtml}
                   </div>
                 </div>
@@ -250,6 +302,7 @@
                 <button class="cta-primary" onclick="window.handleIVRCall()">Ik heb gebeld & bevestigd</button>
              </div>
            `;
+           setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
     
@@ -261,22 +314,49 @@
 
     controlsEl.innerHTML = html;
     
-    // Focus logic
+    // Auto-focus & Enter Support
     const firstInput = controlsEl.querySelector("input");
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
-    
     const inputs = controlsEl.querySelectorAll("input");
     inputs.forEach(input => {
         input.addEventListener("keydown", (e) => { if(e.key === "Enter") window.submitChatText(); });
     });
-
     if (step.id === "dob") initDobMask();
   }
 
   // =============================================================
-  // 5. HANDLERS
+  // 6. SPINNER ANIMATIE (Precies zoals in IVR.js)
   // =============================================================
-  
+  function animatePinRevealSpinner(pin, targetId) {
+    const container = document.getElementById(targetId);
+    if (!container) return;
+
+    const digits = container.querySelectorAll(".digit-inner");
+    pin.split("").forEach((digit, index) => {
+      const inner = digits[index];
+      if (!inner) return;
+
+      inner.innerHTML = "";
+      // Maak kolom met cijfers 0 t/m 9
+      for (let i = 0; i <= 9; i++) {
+        const span = document.createElement("span");
+        span.textContent = i;
+        span.style.display = "block";
+        span.style.height = "56px"; // Exact zelfde hoogte als wrapper
+        inner.appendChild(span);
+      }
+
+      // Bereken offset (56px per digit in plaats van 64px om het strakker te maken)
+      const offset = parseInt(digit, 10) * 56;
+      setTimeout(() => {
+        inner.style.transform = `translateY(-${offset}px)`;
+      }, 100); // Korte delay voor smooth trigger
+    });
+  }
+
+  // =============================================================
+  // 7. HANDLERS
+  // =============================================================
   window.handleChatInput = function(id, value) {
     addMessage("user", value);
     sessionStorage.setItem(id, value);
@@ -288,8 +368,7 @@
     let userDisplay = "";
     
     if (step.inputType === "text-multi") {
-       let values = [];
-       let valid = true;
+       let values = []; let valid = true;
        step.fields.forEach(f => {
            const el = document.getElementById(`chat-input-${f.id}`);
            if(!el || !el.value.trim()) valid = false;
@@ -340,9 +419,8 @@
   };
 
   // =============================================================
-  // 6. HELPERS & AFHANDELING
+  // 8. HELPERS & AFHANDELING
   // =============================================================
-
   async function handleShortFormComplete() {
      if (!isLive) finalizeShortForm();
   }
