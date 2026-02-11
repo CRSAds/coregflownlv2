@@ -679,7 +679,7 @@ input[type="text"], input[type="tel"], input[type="email"], select {
           // Hoofdlead versturen nadat IVR is doorlopen
           if (window.buildPayload && window.fetchLead) {
               try {
-                  const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
+                  const payload = await window.buildPayload({ cid: "925", sid: "34", is_shortform: true });
                   await window.fetchLead(payload);
                   sessionStorage.setItem("shortFormCompleted", "true");
               } catch (e) { console.error("Fout bij versturen hoofdlead", e); }
