@@ -1,8 +1,24 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + IVR + COREG IN CHAT + LONGFORM)
+// 💬 CHAT FORM LOGIC (Julia - NL + IVR + COREG + LONGFORM + FIXES)
 // =============================================================
 
 (function() {
+  // --- MOBIELE HOOGTE FIX (Injectie van CSS voor perfecte viewport) ---
+  const style = document.createElement('style');
+  style.innerHTML = `
+    #chat-interface {
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+    #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
+    #chat-controls { flex: 0 0 auto !important; }
+  `;
+  document.head.appendChild(style);
+
   // 1. VARIABELEN VOORAF DECLAREREN
   let historyEl, controlsEl, typingEl, chatInterface;
   let currentStepIndex = 0;
@@ -12,11 +28,10 @@
   const isLive = urlParams.get("status") === "live"; 
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Instellingen
   const IVR_NUMBER_DISPLAY = "0906-1512"; 
   const IVR_NUMBER_DIAL = "09061512"; 
   let fetchedIvrPin = "000"; 
-  let coregFlow = []; // Wordt dynamisch gevuld via API
+  let coregFlow = []; 
 
   // =============================================================
   // 2. ACHTERGROND API FETCHES (IVR & Coreg)
@@ -36,6 +51,10 @@
             localStorage.setItem("t_id", t_id);
         }
         
+        localStorage.setItem("aff_id", affId);
+        localStorage.setItem("offer_id", offerId);
+        localStorage.setItem("sub_id", subId);
+
         try {
             let internalVisitId = localStorage.getItem("internalVisitId");
             if (!internalVisitId) {
@@ -58,26 +77,22 @@
         } catch (err) { console.error("IVR Error:", err); }
     }
 
-    // B. Coreg Campagnes Ophalen en bouwen voor in de chat
+    // B. Coreg Campagnes Ophalen
     try {
         const apiUrl = window.API_COREG || "https://coregflownlv2.vercel.app/api/coreg.js";
         const res = await fetch(apiUrl);
         const json = await res.json();
-        const campaigns = (json.data || []).filter(c => !c.uitsluiten_standaardpad); // Pak de standaard actieve campagnes
+        const campaigns = (json.data || []).filter(c => !c.uitsluiten_standaardpad); 
         
         coregFlow = campaigns.map((c, index) => {
             const isFirst = index === 0;
             const botTexts = [];
             
-            // Transitiezin bij de eerste campagne
-            if (isFirst) {
-                botTexts.push("Om je deelname definitief af te ronden, hebben we nog een paar speciale aanbiedingen voor je geselecteerd! 🎁");
-            }
+            if (isFirst) botTexts.push("Om je deelname definitief af te ronden, hebben we nog een paar speciale aanbiedingen voor je geselecteerd! 🎁");
             
             const title = c.title_new || c.title || "";
             const imgUrl = c.image?.id ? `https://cms.core.909play.com/assets/${c.image.id}` : (c.image?.url || "https://via.placeholder.com/600x200?text=Aanbieding");
             
-            // Prachtige opmaak van de campagne in een chat-bubbel (afbeelding strak tegen de rand)
             botTexts.push(`
               <div style="margin: -12px -16px 12px -16px;">
                 <img src="${imgUrl}" style="width: 100%; border-radius: 16px 16px 0 0; display: block; object-fit: cover; max-height: 150px;">
@@ -93,12 +108,11 @@
                 inputType: "coreg_interaction"
             };
         });
-        console.log("✅ Coreg in-chat flow geladen met", coregFlow.length, "campagnes");
     } catch (err) { console.error("Coreg fetch error:", err); }
   }
 
   // =============================================================
-  // 3. FLOW CONFIGURATIES (Short Form & Long Form)
+  // 3. FLOW CONFIGURATIES
   // =============================================================
   const chatFlow = [
     {
@@ -159,7 +173,6 @@
   // =============================================================
   document.addEventListener("DOMContentLoaded", () => {
       initializeData(); 
-      
       historyEl = document.getElementById("chat-history");
       controlsEl = document.getElementById("chat-controls");
       typingEl = document.getElementById("typing-indicator");
@@ -185,6 +198,15 @@
     if (step.condition && !step.condition()) {
         runStep(index + 1);
         return;
+    }
+
+    // ✅ FIX: Verzend Long Form direct als we de sovendus stap bereiken!
+    if (step.id === "sovendus") {
+        if (window.buildPayload && window.fetchLead) {
+            window.buildPayload({ cid: "1123", sid: "34", is_shortform: false })
+                  .then(payload => window.fetchLead(payload))
+                  .catch(e => console.error("Long Form Submit Error:", e));
+        }
     }
 
     currentStepIndex = index;
@@ -244,24 +266,38 @@
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- NIEUW: COREG INTERACTIE ---
+    // --- COREG INTERACTIE (FIXES: Dropdown & Compact) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
+        const style = camp.ui_style?.toLowerCase() || "buttons"; // Check of het een dropdown is
         
-        html = `<div class="chat-btn-group" style="flex-direction:column; gap:10px;">`;
+        html = `<div class="chat-btn-group" style="flex-direction:column; gap:6px;">`;
         
-        // Primaire actieknoppen (Ja/Interesse)
-        answers.forEach(opt => {
-            const cid = opt.has_own_campaign ? opt.cid : camp.cid;
-            const sid = opt.has_own_campaign ? opt.sid : camp.sid;
-            const val = opt.answer_value || "yes";
-            html += `<button class="cta-primary" style="width:100%; padding:14px; font-size:15px;" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
-        });
+        if (style === "dropdown") {
+            // ✅ Fix: Toon dropdown indien gevraagd
+            html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:12px; font-size:15px; border:1px solid #ccc; border-radius:8px; width:100%;">
+                        <option value="">Kies een optie...</option>`;
+            answers.forEach(opt => {
+                const val = opt.answer_value || "yes";
+                const cid = opt.has_own_campaign ? opt.cid : camp.cid;
+                const sid = opt.has_own_campaign ? opt.sid : camp.sid;
+                html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
+            });
+            html += `</select>`;
+            html += `<button class="cta-primary" style="width:100%; padding:10px; font-size:14px; border-radius:8px;" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
+        } else {
+            // ✅ Fix: Kleinere en compactere knoppen
+            answers.forEach(opt => {
+                const cid = opt.has_own_campaign ? opt.cid : camp.cid;
+                const sid = opt.has_own_campaign ? opt.sid : camp.sid;
+                const val = opt.answer_value || "yes";
+                html += `<button class="cta-primary" style="width:100%; padding:10px; font-size:14px; border-radius:8px;" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
+            });
+        }
         
         // 'Nee bedankt' linkje
-        html += `<button onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')" style="display:block; width:100%; background:none; border:none; padding:8px; color:#999; text-decoration:underline; font-size:14px; cursor:pointer;">Nee, bedankt</button>`;
-        
+        html += `<button onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')" style="display:block; width:100%; background:none; border:none; padding:8px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">Nee, bedankt</button>`;
         html += `</div>`;
     }
     // --- SOVENDUS EINDE ---
@@ -272,7 +308,6 @@
 
     controlsEl.innerHTML = html;
     
-    // Focus & Enter Support
     const firstInput = controlsEl.querySelector("input");
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
     const inputs = controlsEl.querySelectorAll("input");
@@ -333,9 +368,11 @@
         sessionStorage.setItem("email", val); userDisplay = val;
     }
     else if (step.id === "dob") {
-        const val = document.getElementById(`chat-input-dob`).value.trim();
-        if(val.length < 10) { alert("Vul je volledige geboortedatum in."); return; }
-        sessionStorage.setItem("dob", val); userDisplay = val;
+        const val = document.getElementById(`chat-input-dob`).value;
+        // ✅ FIX: Verwijder spaties uit de datum, zodat het strak is ("12/03/1990" i.p.v. "12 / 03 / 1990")
+        const cleanVal = val.replace(/\s+/g, ''); 
+        if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in."); return; }
+        sessionStorage.setItem("dob", cleanVal); userDisplay = val;
     }
 
     addMessage("user", userDisplay);
@@ -352,14 +389,22 @@
 
   window.handleIVRCall = function() {
       if (!isMobile) addMessage("user", "Ik heb gebeld en bevestigd.");
-      runStep(currentStepIndex + 1); // Ga door, shortform is ten einde
+      runStep(currentStepIndex + 1); 
   };
 
-  // --- NIEUW: COREG HANDLER ---
-  window.submitCoregAnswer = async function(answerValue, cid, sid, userText) {
-      addMessage("user", userText); // Toon keuze in de chat
+  // --- COREG HANDLERS ---
+  window.submitCoregDropdown = function(campId, fallbackCid, fallbackSid) {
+      const sel = document.getElementById(`coreg-select-${campId}`);
+      if(!sel || !sel.value) { alert("Kies een optie om verder te gaan."); return; }
+      const opt = sel.options[sel.selectedIndex];
+      const cid = opt.getAttribute("data-cid") || fallbackCid;
+      const sid = opt.getAttribute("data-sid") || fallbackSid;
+      window.submitCoregAnswer(sel.value, cid, sid, opt.text);
+  };
 
-      // Sla op & verzend Lead in de achtergrond (Non-blocking)
+  window.submitCoregAnswer = async function(answerValue, cid, sid, userText) {
+      addMessage("user", userText); 
+
       if (window.buildPayload && window.fetchLead) {
           try {
               const key = `coreg_answers_${cid}`;
@@ -370,24 +415,34 @@
               const combined = prev.join(" - ");
               sessionStorage.setItem(`f_2014_coreg_answer_${cid}`, combined);
               
+              // Sla ook specifiek het dropdown antwoord op als het geen simpele yes/no is
+              if (answerValue && answerValue !== 'yes' && answerValue !== 'no') {
+                   sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${cid}`, answerValue);
+              }
+              
               const payload = await window.buildPayload({ cid, sid, is_shortform: false, f_2014_coreg_answer: combined });
               window.fetchLead(payload);
           } catch(e) { console.error("Coreg lead verzendfout:", e); }
       }
 
-      runStep(currentStepIndex + 1); // Direct door naar de volgende sponsor
+      // ✅ FIX: Multi-step logica (Sla rest van deze campagne over bij "Nee")
+      let nextIdx = currentStepIndex + 1;
+      if (answerValue === "no" && currentFlow === coregFlow) {
+          while (nextIdx < coregFlow.length && coregFlow[nextIdx].campaign.cid === cid) {
+              nextIdx++;
+          }
+      }
+      runStep(nextIdx);
   };
 
   // =============================================================
-  // 7. TRANSITIE LOGICA TUSSEN DE FLOWS (HET MEESTERBREIN)
+  // 7. TRANSITIE LOGICA TUSSEN DE FLOWS
   // =============================================================
   async function handleFlowComplete() {
-      // 1. Is Short form (+ IVR) zojuist afgerond?
       if (currentFlow === chatFlow) {
           controlsEl.innerHTML = ``; 
           typingEl.style.display = "flex"; scrollToBottom();
           
-          // Verzend de initiële short form lead
           if (window.buildPayload && window.fetchLead) {
               try {
                   const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
@@ -396,30 +451,23 @@
               } catch (e) { console.error(e); }
           }
           
-          await new Promise(r => setTimeout(r, 600)); // Korte natuurlijke pauze
+          await new Promise(r => setTimeout(r, 600)); 
           typingEl.style.display = "none";
 
-          // Zijn er coreg campagnes beschikbaar? Start die flow!
           if (coregFlow && coregFlow.length > 0) {
               switchFlow(coregFlow);
           } else {
-              // Anders meteen door naar Long Form
               switchFlow(longChatFlow);
           }
       } 
-      // 2. Is Coreg zojuist afgerond?
       else if (currentFlow === coregFlow) {
           switchFlow(longChatFlow);
-      }
-      // 3. Is Long Form zojuist afgerond?
-      else if (currentFlow === longChatFlow) {
-          // Niks meer te doen, we zijn klaar (Sovendus staat al open).
       }
   }
 
   function switchFlow(newFlow) {
       currentFlow = newFlow;
-      setTimeout(() => runStep(0), 400); // Start de nieuwe serie stappen naadloos
+      setTimeout(() => runStep(0), 400); 
   }
 
   // =============================================================
