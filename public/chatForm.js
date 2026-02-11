@@ -1,9 +1,9 @@
 // =============================================================
-// 💬 CHAT FORM LOGIC (Julia - NL + UI FIXES + API FIXES)
+// 💬 CHAT FORM LOGIC (Julia - NL + DROPDOWNS + API FIXES)
 // =============================================================
 
 (function() {
-  // --- CSS INJECTIE (Voor veilige afmetingen & compacte buttons) ---
+  // --- CSS INJECTIE (Voor veilige afmetingen & compacte coreg) ---
   const style = document.createElement('style');
   style.innerHTML = `
     /* VEILIGE CHAT AFMETINGEN (Voor Mobiel & Desktop) */
@@ -11,7 +11,7 @@
       width: 100% !important;
       max-width: 480px !important;
       height: 600px !important;
-      max-height: 80vh !important; /* Voorkomt buiten beeld vallen op kleine mobieltjes */
+      max-height: 80vh !important;
       margin: 0 auto !important;
       display: flex !important;
       flex-direction: column !important;
@@ -24,14 +24,13 @@
     #chat-history { flex: 1 1 auto !important; overflow-y: auto !important; }
     #chat-controls { flex: 0 0 auto !important; padding: 16px !important; }
     
-    /* COREG COMPACTE BUTTONS (Forceer eigen stijl, negeer cta-primary) */
+    /* COREG COMPACTE BUTTONS */
     #chat-controls .coreg-btn-compact {
       width: 100% !important;
       padding: 10px 14px !important; 
       font-size: 14px !important;
       font-weight: 600 !important;
-      margin-bottom: 8px !important; 
-      border-radius: 8px !important;
+      border-radius: 6px !important;
       background: #f0f9f4 !important; /* Lichtgroen */
       color: #14B670 !important;
       border: 1.5px solid #14B670 !important;
@@ -45,10 +44,10 @@
       color: #fff !important;
     }
     
-    /* Nee Bedankt knopje */
+    /* Nee Bedankt linkje (Strak eronder) */
     #chat-controls .coreg-btn-decline {
       display: block !important; width: 100% !important; background: transparent !important; 
-      border: none !important; padding: 8px !important; color: #999 !important; 
+      border: none !important; padding: 4px !important; color: #999 !important; 
       text-decoration: underline !important; font-size: 13px !important; 
       cursor: pointer !important; margin-top: 2px !important; text-align: center !important;
       box-shadow: none !important;
@@ -73,7 +72,6 @@
   // 2. ACHTERGROND API FETCHES (IVR & Coreg)
   // =============================================================
   async function initializeData() {
-    // A. IVR Ophalen (Alleen als status=live)
     if (isLive) {
         const affId = urlParams.get("aff_id") || "123";
         const offerId = urlParams.get("offer_id") || "234";
@@ -110,7 +108,6 @@
         } catch (err) { console.error("IVR Error:", err); }
     }
 
-    // B. Coreg Campagnes Ophalen
     try {
         const apiUrl = window.API_COREG || "https://coregflownlv2.vercel.app/api/coreg.js";
         const res = await fetch(apiUrl);
@@ -226,7 +223,6 @@
         return;
     }
 
-    // ✅ FIX: Verzend de opgespaarde Long Form leads zodra adres bekend is (vlak voor sovendus)
     if (step.id === "sovendus") {
         const pending = JSON.parse(sessionStorage.getItem("pendingLongFormLeads") || "[]");
         if (pending.length > 0 && window.buildPayload && window.fetchLead) {
@@ -236,7 +232,7 @@
                     window.fetchLead(payload);
                 } catch(e) { console.error(e); }
             });
-            sessionStorage.removeItem("pendingLongFormLeads"); // Leegmaken
+            sessionStorage.removeItem("pendingLongFormLeads");
         }
     }
 
@@ -264,24 +260,24 @@
     
     if (step.inputType === "buttons") {
       html = `<div class="chat-btn-group">`;
-      step.options.forEach(opt => html += `<button class="chat-option-btn" onclick="window.handleChatInput('${step.id}', '${opt.value}')">${opt.label}</button>`);
+      step.options.forEach(opt => html += `<button type="button" class="chat-option-btn" onclick="window.handleChatInput('${step.id}', '${opt.value}')">${opt.label}</button>`);
       html += `</div>`;
     } 
     else if (step.inputType === "text-multi" || step.inputType === "address_zip_lookup") {
       step.fields.forEach(f => html += `<input type="text" id="chat-input-${f.id}" class="chat-input-text" placeholder="${f.placeholder}" style="margin-bottom:10px;">`);
-      html += `<button class="cta-primary" onclick="window.submitChatText()" style="margin-top:5px;">Volgende</button>`;
+      html += `<button type="button" class="cta-primary" onclick="window.submitChatText(event)" style="margin-top:5px;">Volgende</button>`;
     }
     else if (step.inputType === "dob") {
-       html = `<div style="display:flex; gap:10px; width:100%;"><input type="tel" inputmode="numeric" id="chat-input-dob" class="chat-input-text" placeholder="DD / MM / JJJJ" autocomplete="bday" maxlength="14"> <button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
+       html = `<div style="display:flex; gap:10px; width:100%;"><input type="tel" inputmode="numeric" id="chat-input-dob" class="chat-input-text" placeholder="DD / MM / JJJJ" autocomplete="bday" maxlength="14"> <button type="button" class="chat-submit-btn" onclick="window.submitChatText(event)">➤</button></div>`;
     }
     else if (step.inputType === "email" || step.inputType === "tel") {
-        html = `<div style="display:flex; gap:10px; width:100%;"><input type="${step.inputType}" id="chat-input-${step.fieldId}" class="chat-input-text" placeholder="${step.placeholder}" autocomplete="${step.inputType}"><button class="chat-submit-btn" onclick="window.submitChatText()">➤</button></div>`;
+        html = `<div style="display:flex; gap:10px; width:100%;"><input type="${step.inputType}" id="chat-input-${step.fieldId}" class="chat-input-text" placeholder="${step.placeholder}" autocomplete="${step.inputType}"><button type="button" class="chat-submit-btn" onclick="window.submitChatText(event)">➤</button></div>`;
     }
     else if (step.inputType === "terms_agree") {
-      html = `<button class="cta-primary" onclick="window.handleTermsAgree()">${step.buttonText}</button><div style="font-size:12px; color:#999; text-align:center; margin-top:10px; line-height:1.4;">${step.subText}</div>`;
+      html = `<button type="button" class="cta-primary" onclick="window.handleTermsAgree()">${step.buttonText}</button><div style="font-size:12px; color:#999; text-align:center; margin-top:10px; line-height:1.4;">${step.subText}</div>`;
     }
     else if (step.inputType === "partners_choice") {
-      html = `<button class="cta-primary" onclick="window.handlePartnerChoice(true)">${step.btnAccept}</button><button onclick="window.handlePartnerChoice(false)" style="display:block; width:100%; background:none; border:none; margin-top:12px; padding:5px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">${step.btnDecline}</button>`;
+      html = `<button type="button" class="cta-primary" onclick="window.handlePartnerChoice(true)">${step.btnAccept}</button><button type="button" onclick="window.handlePartnerChoice(false)" style="display:block; width:100%; background:none; border:none; margin-top:12px; padding:5px; color:#999; text-decoration:underline; font-size:13px; cursor:pointer;">${step.btnDecline}</button>`;
     }
     else if (step.inputType === "ivr_verify") {
        const pinStr = fetchedIvrPin; 
@@ -293,40 +289,33 @@
            html = `<div id="ivr-mobile" style="text-align:center; width:100%;"><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">Jouw verificatiecode:</div><div id="pin-code-spinner-mobile" class="pin-spinner" style="display:flex; justify-content:center; margin-bottom:16px;">${digitsHtml}</div><a href="tel:${IVR_NUMBER_DIAL},${pinStr}#" class="cta-primary ivr-call-btn" onclick="window.handleIVRCall()" style="display:flex; align-items:center; justify-content:center; text-decoration:none; margin-bottom:8px; font-size:18px;">📞 Bel Nu</a><div style="font-size:12px; color:#777; margin-top:8px;">(De code wordt automatisch ingetoetst)</div></div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-mobile"), 100);
        } else {
-           html = `<div id="ivr-desktop" style="text-align:center; width:100%;"><div style="font-size:15px; color:#444; margin-bottom:16px; font-weight:500;">Bel naar: <span style="font-size:26px; font-weight:800; color:#14B670; display:block; margin-top:6px; letter-spacing:1px;">${IVR_NUMBER_DISPLAY}</span></div><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">En toets deze code in:</div><div id="pin-container-desktop" style="margin-bottom:24px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div><button class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px;">Ik heb gebeld & bevestigd</button></div>`;
+           html = `<div id="ivr-desktop" style="text-align:center; width:100%;"><div style="font-size:15px; color:#444; margin-bottom:16px; font-weight:500;">Bel naar: <span style="font-size:26px; font-weight:800; color:#14B670; display:block; margin-top:6px; letter-spacing:1px;">${IVR_NUMBER_DISPLAY}</span></div><div style="font-size:16px; font-weight:700; color:#003C43; margin-bottom:12px;">En toets deze code in:</div><div id="pin-container-desktop" style="margin-bottom:24px;"><div id="pin-code-spinner-desktop" class="pin-spinner" style="display:flex; justify-content:center;">${digitsHtml}</div></div><button type="button" class="cta-primary" onclick="window.handleIVRCall()" style="font-size:16px;">Ik heb gebeld & bevestigd</button></div>`;
            setTimeout(() => animatePinRevealSpinner(pinStr, "pin-code-spinner-desktop"), 100);
        }
     }
-    // --- COREG INTERACTIE (MET COMPACTE BUTTONS) ---
+    // --- COREG INTERACTIE (ALLES IS NU EEN DROPDOWN) ---
     else if (step.inputType === "coreg_interaction") {
         const camp = step.campaign;
         const answers = camp.coreg_answers || [];
-        const style = camp.ui_style?.toLowerCase() || "buttons";
         
         html = `<div class="chat-btn-group" style="flex-direction:column; gap:0;">`;
         
-        if (style === "dropdown") {
-            html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:10px; font-size:14px; border:1px solid #ccc; border-radius:6px; width:100%;">
-                        <option value="">Kies een optie...</option>`;
-            answers.forEach(opt => {
-                const val = opt.answer_value || "yes";
-                const cid = opt.has_own_campaign ? opt.cid : camp.cid;
-                const sid = opt.has_own_campaign ? opt.sid : camp.sid;
-                html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
-            });
-            html += `</select>`;
-            html += `<button class="coreg-btn-compact" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
-        } else {
-            // Nu gebruiken we strict de .coreg-btn-compact
-            answers.forEach(opt => {
-                const cid = opt.has_own_campaign ? opt.cid : camp.cid;
-                const sid = opt.has_own_campaign ? opt.sid : camp.sid;
-                const val = opt.answer_value || "yes";
-                html += `<button class="coreg-btn-compact" onclick="window.submitCoregAnswer('${val}', '${cid}', '${sid}', '${opt.label}')">${opt.label}</button>`;
-            });
-        }
+        // Geforceerde Dropdown voor ALLE coreg campagnes
+        html += `<select id="coreg-select-${camp.id}" class="chat-input-text" style="margin-bottom:6px; padding:10px; font-size:14px; border:1px solid #ccc; border-radius:6px; width:100%; background:#fff;">
+                    <option value="">Kies een optie...</option>`;
+        answers.forEach(opt => {
+            const val = opt.answer_value || "yes";
+            const cid = opt.has_own_campaign ? opt.cid : camp.cid;
+            const sid = opt.has_own_campaign ? opt.sid : camp.sid;
+            html += `<option value="${val}" data-cid="${cid}" data-sid="${sid}">${opt.label}</option>`;
+        });
+        html += `</select>`;
         
-        html += `<button class="coreg-btn-decline" onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')">Nee, bedankt</button>`;
+        // Bevestigen knop, direct onder dropdown
+        html += `<button type="button" class="coreg-btn-compact" style="margin-bottom:2px !important;" onclick="window.submitCoregDropdown('${camp.id}', '${camp.cid}', '${camp.sid}')">Bevestigen</button>`;
+        
+        // Nee bedankt optie (Strak eronder)
+        html += `<button type="button" class="coreg-btn-decline" onclick="window.submitCoregAnswer('no', '${camp.cid}', '${camp.sid}', 'Nee, bedankt')">Nee, bedankt</button>`;
         html += `</div>`;
     }
     else if (step.inputType === "sovendus_end") {
@@ -340,7 +329,12 @@
     if(firstInput) setTimeout(() => firstInput.focus(), 100);
     const inputs = controlsEl.querySelectorAll("input");
     inputs.forEach(input => {
-        input.addEventListener("keydown", (e) => { if(e.key === "Enter") window.submitChatText(); });
+        input.addEventListener("keydown", (e) => { 
+            if(e.key === "Enter") {
+                e.preventDefault();
+                window.submitChatText(e); 
+            }
+        });
     });
     if (step.id === "dob") initDobMask();
   }
@@ -371,7 +365,8 @@
     runStep(currentStepIndex + 1);
   };
 
-  window.submitChatText = async function() {
+  window.submitChatText = async function(e) {
+    if (e) e.preventDefault(); // Voorkom per ongeluk form-submit!
     const step = currentFlow[currentStepIndex];
     let userDisplay = "";
     
@@ -388,10 +383,20 @@
         typingEl.style.display = "flex"; scrollToBottom();
         
         try {
-            const res = await fetch("/api/validateAddressNL", {
+            console.log("📍 Start API call voor postcode...");
+            
+            // Flexibele Base URL bepaling (Voorkomt 404 errors)
+            let baseUrl = "";
+            if (window.API_COREG && window.API_COREG.includes("vercel.app")) {
+                const urlObj = new URL(window.API_COREG);
+                baseUrl = urlObj.origin;
+            }
+            
+            const res = await fetch(baseUrl + "/api/validateAddressNL", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ postcode: zip, huisnummer: num })
             });
+            
             const data = await res.json();
             console.log("📍 Adres API Check Resultaat:", data);
             
@@ -401,18 +406,18 @@
                 sessionStorage.setItem("street", data.street);
                 sessionStorage.setItem("city", data.city);
                 addMessage("bot", `Gevonden! Je adres is:<br><strong>${data.street}, ${data.city}</strong>`);
-                // ✅ Sla de straat-vraag over!
-                runStep(currentStepIndex + 2); 
+                runStep(currentStepIndex + 2); // ✅ Sla handmatige straatvraag over!
                 return;
             } else {
+                console.warn("📍 Adres niet gevonden in API, fallback naar handmatig.");
                 addMessage("bot", "Ik kon je straat niet automatisch vinden. Vul het hieronder even handmatig in.");
             }
-        } catch(e) { 
-            console.error("📍 Adres validatie fout:", e); 
+        } catch(err) { 
+            console.error("📍 Adres validatie fetch error:", err); 
             typingEl.style.display = "none";
         }
         
-        // Ga handmatig naar de volgende stap als we hier komen
+        // Als API faalt of adres onbekend is:
         runStep(currentStepIndex + 1); 
         return;
     }
@@ -438,7 +443,7 @@
     }
     else if (step.id === "dob") {
         const val = document.getElementById(`chat-input-dob`).value;
-        const cleanVal = val.replace(/\s+/g, ''); // Fix voor Databowl
+        const cleanVal = val.replace(/\s+/g, ''); 
         if(cleanVal.length !== 10) { alert("Vul je volledige geboortedatum in."); return; }
         sessionStorage.setItem("dob", cleanVal); userDisplay = val;
     }
@@ -474,7 +479,6 @@
       addMessage("user", userText); 
       const camp = currentFlow[currentStepIndex].campaign;
 
-      // Sla antwoord lokaal op
       const key = `coreg_answers_${cid}`;
       const prev = JSON.parse(sessionStorage.getItem(key) || "[]");
       if (answerValue && !prev.includes(answerValue)) prev.push(answerValue);
@@ -485,7 +489,6 @@
            sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${cid}`, answerValue);
       }
 
-      // Verwerk Lead (Alleen als positief)
       if (answerValue !== "no") {
           const isLongForm = camp.requiresLongForm || camp.requires_long_form === true || camp.requires_long_form === "true";
           
@@ -503,7 +506,6 @@
           }
       }
 
-      // ✅ FIX: Sla de overige vragen van een multistep campagne over bij een NEE antwoord
       let nextIdx = currentStepIndex + 1;
       if (answerValue === "no" && currentFlow === coregFlow) {
           while (nextIdx < coregFlow.length && coregFlow[nextIdx].campaign.cid === camp.cid) {
@@ -521,7 +523,6 @@
           controlsEl.innerHTML = ``; 
           typingEl.style.display = "flex"; scrollToBottom();
           
-          // Initial Lead versturen
           if (window.buildPayload && window.fetchLead) {
               try {
                   const payload = await window.buildPayload({ cid: "1123", sid: "34", is_shortform: true });
